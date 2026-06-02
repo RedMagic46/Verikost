@@ -445,9 +445,11 @@ function OwnerDashboardContent() {
           
           
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-primary to-secondary text-white font-bold shadow-md shadow-primary/20">
-              VK
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="VeriKost Logo" 
+              className="h-9 w-9 object-contain" 
+            />
             <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
               VeriKost<span className="brand-gradient-text">Malang</span>
               <span className="ml-2.5 text-[9px] font-black bg-primary/10 border border-primary/20 text-primary py-0.5 px-2 rounded-full uppercase tracking-wider">

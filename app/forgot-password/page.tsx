@@ -16,9 +16,11 @@ export default function ForgotPasswordPage() {
       
       <div className="mb-6 flex flex-col items-center gap-2">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-primary to-secondary text-white font-black shadow-md shadow-primary/20">
-            VK
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="VeriKost Logo" 
+            className="h-10 w-10 object-contain" 
+          />
           <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
             VeriKost<span className="brand-gradient-text">Malang</span>
           </span>

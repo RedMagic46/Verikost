@@ -69,9 +69,11 @@ export default function Navbar() {
       <div className="mx-auto flex max-w-7xl h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-primary to-secondary text-white font-bold shadow-md shadow-primary/20 transition-transform group-hover:scale-105">
-            VK
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="VeriKost Logo" 
+            className="h-9 w-9 object-contain transition-transform group-hover:scale-105" 
+          />
           <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white transition-colors">
             VeriKost<span className="brand-gradient-text">Malang</span>
           </span>

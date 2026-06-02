@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/app/context/AppContext';
 import { supabase } from '@/app/lib/supabase';
@@ -75,7 +75,7 @@ const defaultSeedMessages: ChatMessage[] = [
   }
 ];
 
-export default function ChatPage() {
+function ChatContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { currentUser, authLoading, users, kosts, showToast } = useApp();
@@ -552,5 +552,18 @@ export default function ChatPage() {
       </section>
 
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[80vh] space-y-4 dark:bg-slate-950">
+        <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+        <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Memuat enkripsi pesan...</p>
+      </div>
+    }>
+      <ChatContent />
+    </Suspense>
   );
 }

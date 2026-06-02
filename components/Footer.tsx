@@ -34,9 +34,11 @@ export default function Footer() {
           
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-500 to-sky-400 text-white font-bold shadow-md shadow-blue-500/20">
-                VK
-              </div>
+              <img 
+                src="/logo.png" 
+                alt="VeriKost Logo" 
+                className="h-9 w-9 object-contain" 
+              />
               <span className="text-xl font-bold tracking-tight text-white">
                 VeriKost<span className="text-sky-400">Malang</span>
               </span>
