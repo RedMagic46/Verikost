@@ -76,23 +76,31 @@ export default function RegisterForm() {
     setErrors({});
     setServerError(null);
 
-    
+    const normalizedFullName = fullName.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = phone.trim();
+    const normalizedUniversity = university.trim();
+    const normalizedFaculty = faculty.trim();
+    const normalizedMajor = major.trim();
+    const normalizedOccupation = occupation.trim();
+    const normalizedKostName = kostName.trim();
+    const normalizedKostAddress = kostAddress.trim();
+
     const rawData = {
-      fullName,
-      email,
-      phone,
+      fullName: normalizedFullName,
+      email: normalizedEmail,
+      phone: normalizedPhone,
       password,
       confirmPassword,
       role,
-      university: role === 'STUDENT' ? university : undefined,
-      faculty: role === 'STUDENT' ? faculty : undefined,
-      major: role === 'STUDENT' ? major : undefined,
-      occupation: role === 'PARENT' ? occupation : undefined,
-      kostName: role === 'OWNER' ? kostName : undefined,
-      kostAddress: role === 'OWNER' ? kostAddress : undefined
+      university: role === 'STUDENT' ? normalizedUniversity : undefined,
+      faculty: role === 'STUDENT' ? normalizedFaculty : undefined,
+      major: role === 'STUDENT' ? normalizedMajor : undefined,
+      occupation: role === 'PARENT' ? normalizedOccupation : undefined,
+      kostName: role === 'OWNER' ? normalizedKostName : undefined,
+      kostAddress: role === 'OWNER' ? normalizedKostAddress : undefined
     };
 
-    
     const result = registerSchema.safeParse(rawData);
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
@@ -106,17 +114,16 @@ export default function RegisterForm() {
       return;
     }
 
-    
-    if (role === 'STUDENT' && !university) {
+    if (role === 'STUDENT' && !normalizedUniversity) {
       setErrors({ university: 'Asal Universitas harus diisi.' });
       return;
     }
     if (role === 'OWNER') {
-      if (!kostName) {
+      if (!normalizedKostName) {
         setErrors({ kostName: 'Nama Kost harus diisi.' });
         return;
       }
-      if (!kostAddress) {
+      if (!normalizedKostAddress) {
         setErrors({ kostAddress: 'Alamat Kost harus diisi.' });
         return;
       }
@@ -124,12 +131,12 @@ export default function RegisterForm() {
 
     setIsLoading(true);
     try {
-      const seed = encodeURIComponent(fullName.trim());
+      const seed = encodeURIComponent(normalizedFullName);
       const payload = {
-        fullName,
-        name: fullName,
-        email,
-        phone,
+        fullName: normalizedFullName,
+        name: normalizedFullName,
+        email: normalizedEmail,
+        phone: normalizedPhone,
         passwordHash: password, 
         role,
         profileImage: role === 'STUDENT' 
@@ -142,12 +149,12 @@ export default function RegisterForm() {
           : role === 'PARENT'
           ? `https://api.dicebear.com/7.x/bottts/svg?seed=${seed}`
           : `https://api.dicebear.com/7.x/lorelei/svg?seed=${seed}`,
-        university: role === 'STUDENT' ? university : undefined,
-        faculty: role === 'STUDENT' ? faculty : undefined,
-        major: role === 'STUDENT' ? major : undefined,
-        occupation: role === 'PARENT' ? occupation : undefined,
-        kostName: role === 'OWNER' ? kostName : undefined,
-        kostAddress: role === 'OWNER' ? kostAddress : undefined
+        university: role === 'STUDENT' ? normalizedUniversity : undefined,
+        faculty: role === 'STUDENT' ? normalizedFaculty : undefined,
+        major: role === 'STUDENT' ? normalizedMajor : undefined,
+        occupation: role === 'PARENT' ? normalizedOccupation : undefined,
+        kostName: role === 'OWNER' ? normalizedKostName : undefined,
+        kostAddress: role === 'OWNER' ? normalizedKostAddress : undefined
       };
 
       const res = await register(payload);

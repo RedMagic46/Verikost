@@ -135,13 +135,13 @@ function ProfileContent() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate size (max 2MB)
+    
     if (file.size > 2 * 1024 * 1024) {
       setUploadError('Ukuran file terlalu besar. Maksimal 2MB.');
       return;
     }
 
-    // Validate image type
+    
     if (!file.type.startsWith('image/')) {
       setUploadError('Tipe file tidak didukung. Harap pilih gambar.');
       return;

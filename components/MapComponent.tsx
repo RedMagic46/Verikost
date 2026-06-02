@@ -22,7 +22,7 @@ export default function MapComponent({
   const [map, setMap] = useState<L.Map | null>(null);
   const markersRef = useRef<Record<string, L.Marker>>({});
 
-  // Real coordinates of key campuses in Malang
+  
   const CAMPUS_COORDS: Record<string, [number, number]> = {
     ub: [-7.9525, 112.6138],
     um: [-7.9622, 112.6172],
@@ -30,27 +30,27 @@ export default function MapComponent({
     uin: [-7.9520, 112.6068],
   };
 
-  const DEFAULT_CENTER: [number, number] = [-7.95, 112.61]; // Center of Malang
+  const DEFAULT_CENTER: [number, number] = [-7.95, 112.61]; 
   const DEFAULT_ZOOM = 13;
 
-  // Helper to obtain coordinates for each kost listing
+  
   const getKostCoordinates = (kost: Kost): [number, number] => {
     if (kost.latitude && kost.longitude) {
       return [Number(kost.latitude), Number(kost.longitude)];
     }
 
     const coords: Record<string, [number, number]> = {
-      'kost-1': [-7.9495, 112.6155], // Jl. Soekarno Hatta No. 45
-      'kost-2': [-7.9452, 112.6225], // Jl. Cengger Ayam I No. 12
-      'kost-3': [-7.9575, 112.6085], // Jl. Sigura-gura No. 18
-      'kost-4': [-7.9235, 112.5955], // Jl. Tlogomas Gg. 8 No. 44
-      'kost-5': [-7.9185, 112.5895], // Perum Landungsari Indah
-      'kost-6': [-7.9605, 112.6125], // Jl. Sumbersari No. 234
+      'kost-1': [-7.9495, 112.6155], 
+      'kost-2': [-7.9452, 112.6225], 
+      'kost-3': [-7.9575, 112.6085], 
+      'kost-4': [-7.9235, 112.5955], 
+      'kost-5': [-7.9185, 112.5895], 
+      'kost-6': [-7.9605, 112.6125], 
     };
 
     if (coords[kost.id]) return coords[kost.id];
 
-    // Fallback pseudo-random deterministic location around Malang based on ID hash
+    
     let hash = 0;
     for (let i = 0; i < kost.id.length; i++) {
       hash = kost.id.charCodeAt(i) + ((hash << 5) - hash);
@@ -60,7 +60,7 @@ export default function MapComponent({
     return [-7.95 + latOffset, 112.61 + lngOffset];
   };
 
-  // 1. Initialize Map Instance
+  
   useEffect(() => {
     if (!mapContainerRef.current || map) return;
 
@@ -83,7 +83,7 @@ export default function MapComponent({
     };
   }, []);
 
-  // 2. Add static visual campus markers once map is ready
+  
   useEffect(() => {
     if (!map) return;
 
@@ -122,7 +122,7 @@ export default function MapComponent({
     };
   }, [map]);
 
-  // 2. Invalidate Map Size once initialized to force complete tile rendering
+  
   useEffect(() => {
     if (!map) return;
     const timer = setTimeout(() => {
@@ -131,7 +131,7 @@ export default function MapComponent({
     return () => clearTimeout(timer);
   }, [map]);
 
-  // 3. Center/Fly To Active Campus Selection or fit Bounds
+  
   useEffect(() => {
     if (!map) return;
 
@@ -146,11 +146,11 @@ export default function MapComponent({
     }
   }, [map, selectedCampus, kosts.length]);
 
-  // 4. Render and Synchronize Kost Pins
+  
   useEffect(() => {
     if (!map) return;
 
-    // Remove old pins that are no longer filtered
+    
     Object.entries(markersRef.current).forEach(([id, marker]) => {
       if (!kosts.some((k) => k.id === id)) {
         marker.remove();
@@ -158,7 +158,7 @@ export default function MapComponent({
       }
     });
 
-    // Add or update pins
+    
     kosts.forEach((kost) => {
       const coords = getKostCoordinates(kost);
       const isActive = activeMapKostId === kost.id;
@@ -197,11 +197,11 @@ export default function MapComponent({
       });
 
       if (markersRef.current[kost.id]) {
-        // Update existing marker
+        
         markersRef.current[kost.id].setIcon(customIcon);
         markersRef.current[kost.id].setZIndexOffset(isActive ? 1000 : 0);
       } else {
-        // Build new marker
+        
         const marker = L.marker(coords, { icon: customIcon })
           .on('click', () => {
             setActiveMapKostId(kost.id);
@@ -217,7 +217,7 @@ export default function MapComponent({
     });
   }, [map, kosts, activeMapKostId]);
 
-  // 5. Smoothly Pan Map to Selected Active Kost Pin
+  
   useEffect(() => {
     if (!map || !activeMapKostId) return;
 

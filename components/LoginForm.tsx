@@ -15,14 +15,14 @@ const loginSchema = z.object({
 export default function LoginForm() {
   const router = useRouter();
   const { login, currentUser, authLoading } = useApp();
-  
-  
+
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  
+
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -33,8 +33,8 @@ export default function LoginForm() {
     setErrors({});
     setServerError(null);
 
-    
-    const result = loginSchema.safeParse({ email, password });
+    const normalizedEmail = email.trim().toLowerCase();
+    const result = loginSchema.safeParse({ email: normalizedEmail, password });
     if (!result.success) {
       const fieldErrors: { email?: string; password?: string } = {};
       result.error.issues.forEach((err) => {
@@ -47,11 +47,11 @@ export default function LoginForm() {
 
     setIsLoading(true);
     try {
-      const res = await login(email, password);
+      const res = await login(normalizedEmail, password);
       if (res.success) {
         setIsSuccess(true);
         if (rememberMe) {
-          localStorage.setItem('vk_remember_email', email);
+          localStorage.setItem('vk_remember_email', normalizedEmail);
         } else {
           localStorage.removeItem('vk_remember_email');
         }
@@ -74,7 +74,7 @@ export default function LoginForm() {
     }
   };
 
-  
+
   React.useEffect(() => {
     const saved = localStorage.getItem('vk_remember_email');
     if (saved) {
@@ -83,7 +83,7 @@ export default function LoginForm() {
     }
   }, []);
 
-  
+
   React.useEffect(() => {
     if (!authLoading && currentUser) {
       if (currentUser.role === 'OWNER') {
@@ -98,8 +98,8 @@ export default function LoginForm() {
 
   return (
     <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-border shadow-2xl p-8 space-y-6 animate-in fade-in duration-300">
-      
-      
+
+
       <div className="text-center space-y-2">
         <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white leading-tight">
           Masuk ke <span className="brand-gradient-text">VeriKost</span>
@@ -123,38 +123,38 @@ export default function LoginForm() {
         </div>
       )}
 
-      
+
       <form onSubmit={handleSubmit} className="space-y-4">
-        
-        
+
+
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Email Kampus / Umum</label>
           <div className={`flex items-center gap-2 bg-slate-50 dark:bg-slate-800 rounded-xl border px-3.5 py-2.5 transition-colors ${errors.email ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-border focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20'}`}>
             <Mail className="h-4.5 w-4.5 text-slate-400 shrink-0" />
             <input
               type="text"
-              placeholder="nama@student.ub.ac.id atau nama@email.com"
+              placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading || isSuccess}
-              className="w-full text-base md:text-sm bg-transparent rounded-xl outline-none text-slate-800 dark:text-white placeholder-slate-400"
+              className="w-full text-base md:text-sm bg-transparent outline-none text-slate-800 dark:text-white placeholder-slate-400"
             />
           </div>
           {errors.email && <p className="text-[10px] text-rose-500 font-bold pl-1">{errors.email}</p>}
         </div>
 
-        
+
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Kata Sandi</label>
           <div className={`flex items-center gap-2 bg-slate-50 dark:bg-slate-800 rounded-xl border px-3.5 py-2.5 transition-colors ${errors.password ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-border focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20'}`}>
             <Lock className="h-4.5 w-4.5 text-slate-400 shrink-0" />
             <input
               type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
+              placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading || isSuccess}
-              className="w-full text-base md:text-sm bg-transparent rounded-xl outline-none text-slate-800 dark:text-white placeholder-slate-400"
+              className="w-full text-base md:text-sm bg-transparent outline-none text-slate-800 dark:text-white placeholder-slate-400"
             />
             <button
               type="button"
@@ -167,7 +167,7 @@ export default function LoginForm() {
           {errors.password && <p className="text-[10px] text-rose-500 font-bold pl-1">{errors.password}</p>}
         </div>
 
-        
+
         <div className="flex items-center justify-between pt-1">
           <label className="flex items-center gap-2 cursor-pointer group text-xs text-slate-600 dark:text-slate-400 select-none">
             <input
@@ -186,7 +186,7 @@ export default function LoginForm() {
           </Link>
         </div>
 
-        
+
         <button
           type="submit"
           disabled={isLoading || isSuccess}
@@ -201,7 +201,7 @@ export default function LoginForm() {
 
       </form>
 
-      
+
       <div className="text-center pt-2 border-t border-border/80">
         <p className="text-xs text-slate-500">
           Belum punya akun?{' '}

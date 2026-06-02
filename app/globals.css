@@ -227,7 +227,7 @@ input[type="checkbox"]:focus-visible {
   outline-offset: 2px;
 }
 
-/* Hide spin-button/arrows for input type="number" in all browsers */
+
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -242,7 +242,7 @@ input[type="date"] {
   color-scheme: dark;
 }
 
-/* Custom styling for native date picker calendar indicator */
+
 input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
   filter: invert(0.4);

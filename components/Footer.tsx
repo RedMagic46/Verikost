@@ -166,7 +166,7 @@ export default function Footer() {
 
       </div>
 
-      {/* Help Modal */}
+      
       {activeHelpTopic && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-border dark:border-slate-800 shadow-2xl w-full max-w-lg p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-200">

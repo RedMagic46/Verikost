@@ -164,7 +164,7 @@ function OwnerDashboardContent() {
 
     const filesArray = Array.from(files);
     
-    // Check if any file exceeds size limit
+    
     const oversizedFile = filesArray.find(f => f.size > 2 * 1024 * 1024);
     if (oversizedFile) {
       setUploadImageError(`File "${oversizedFile.name}" terlalu besar. Maksimal 2MB per gambar.`);
@@ -172,7 +172,7 @@ function OwnerDashboardContent() {
       return;
     }
 
-    // Check if any file is not an image
+    
     const nonImageFile = filesArray.find(f => !f.type.startsWith('image/'));
     if (nonImageFile) {
       setUploadImageError(`File "${nonImageFile.name}" bukan gambar. Harap pilih file gambar.`);
@@ -250,7 +250,7 @@ function OwnerDashboardContent() {
     setNewImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Edit Profile States & Logic
+  
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
@@ -1035,7 +1035,7 @@ function OwnerDashboardContent() {
                         </div>
                       </div>
 
-                      {/* Koordinat Peta */}
+                      
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2 border-t border-border/80">
                         <div className="space-y-2">
                           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
@@ -1098,7 +1098,7 @@ function OwnerDashboardContent() {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2 border-t border-border/80">
-                        {/* Multi-Image Upload Area */}
+                        
                         <div className="md:col-span-2 space-y-4">
                           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                             <Image className="h-4 w-4 text-slate-400" />
@@ -1106,7 +1106,7 @@ function OwnerDashboardContent() {
                           </label>
                           
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {/* Device Upload Zone */}
+                            
                             <div className="flex flex-col items-center justify-center border-2 border-dashed border-border dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-6 text-center hover:border-primary/50 transition-colors relative">
                               <Upload className="h-8 w-8 text-slate-400 mb-2 animate-pulse" />
                               <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Pilih berkas gambar dari perangkat</p>
@@ -1131,7 +1131,7 @@ function OwnerDashboardContent() {
                               )}
                             </div>
 
-                            {/* URL Input Box */}
+                            
                             <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-border flex flex-col justify-between">
                               <div className="space-y-2">
                                 <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">Atau tambahkan dari link URL gambar:</span>
@@ -1161,7 +1161,7 @@ function OwnerDashboardContent() {
                           )}
                         </div>
 
-                        {/* Image Previews Sidebar */}
+                        
                         <div className="space-y-4">
                           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                             <Image className="h-4 w-4 text-slate-400" />
@@ -1181,14 +1181,14 @@ function OwnerDashboardContent() {
                                   <div key={idx} className="relative group aspect-video rounded-lg overflow-hidden border border-border bg-white dark:bg-slate-950">
                                     <img src={url} alt={`Kost ${idx + 1}`} className="w-full h-full object-cover" />
                                     
-                                    {/* Cover Badge on first image */}
+                                    
                                     {idx === 0 && (
                                       <div className="absolute top-1 left-1 bg-primary text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-wider">
                                         Cover
                                       </div>
                                     )}
                                     
-                                    {/* Action overlays on hover */}
+                                    
                                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
                                       <button
                                         type="button"
@@ -1271,7 +1271,7 @@ function OwnerDashboardContent() {
 
       </div>
       
-      {/* Edit Profile Modal */}
+      
       {isEditProfileOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-border shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-200 scrollbar-none">
@@ -1292,7 +1292,7 @@ function OwnerDashboardContent() {
 
             <form onSubmit={handleSaveProfile} className="space-y-6 text-xs font-semibold">
               
-              {/* Profile Image / Avatar Selection Area */}
+              
               <div className="space-y-3">
                 <span className="text-slate-700 dark:text-slate-300 font-bold block">Foto Profil Anda</span>
                 <div className="flex flex-col sm:flex-row gap-4 items-center bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-border">
@@ -1328,7 +1328,7 @@ function OwnerDashboardContent() {
                   </div>
                 </div>
 
-                {/* Cartoon Avatars Grid */}
+                
                 <div className="space-y-1.5">
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Atau Pilih Karakter Ilustrasi:</span>
                   <div className="grid grid-cols-6 gap-2">
@@ -1348,7 +1348,7 @@ function OwnerDashboardContent() {
                 </div>
               </div>
 
-              {/* Form Input Fields */}
+              
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
                 <div className="space-y-1.5">
@@ -1394,7 +1394,7 @@ function OwnerDashboardContent() {
                   />
                 </div>
 
-                {/* Owner Specific Fields */}
+                
                 <div className="space-y-1.5">
                   <label className="text-slate-700 dark:text-slate-300">Nama Kost Utama</label>
                   <input
@@ -1419,7 +1419,7 @@ function OwnerDashboardContent() {
 
               </div>
 
-              {/* Action Buttons */}
+              
               <div className="flex justify-end gap-3 pt-4 border-t border-border/80">
                 <button
                   type="button"

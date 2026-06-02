@@ -296,7 +296,7 @@ function AdminDashboardContent() {
   const [editKostAddress, setEditKostAddress] = useState('');
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
 
-  // Edit Profile States & Logic for Logged In Admin
+  
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
@@ -492,7 +492,7 @@ function AdminDashboardContent() {
     }
   };
 
-  // Date picker states for analytics
+  
   const [startDate, setStartDate] = useState<string>(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
@@ -502,7 +502,7 @@ function AdminDashboardContent() {
     return new Date().toISOString().split('T')[0];
   });
 
-  // Calculate dynamic chart statistics based on users and kosts registration/creation dates
+  
   const chartData = useMemo(() => {
     const start = new Date(startDate + 'T00:00:00');
     const end = new Date(endDate + 'T23:59:59');
@@ -890,7 +890,7 @@ function AdminDashboardContent() {
                     </div>
                   </div>
                   
-                  {/* Date pickers */}
+                  
                   <div className="flex flex-wrap items-center gap-3">
                     <CustomDatePicker 
                       value={startDate}
@@ -907,18 +907,18 @@ function AdminDashboardContent() {
                   </div>
                 </div>
                 
-                {/* Dynamic Bar Chart */}
+                
                 <div className="h-64 w-full relative flex items-end justify-between px-4 pb-2 border-b border-l border-border/80 bg-[linear-gradient(to_bottom,rgba(14,165,233,0.02)_0%,transparent_100%)]">
                   {chartData.map((d, index) => (
                     <div key={index} className="flex flex-col items-center flex-1 h-full justify-end group relative">
-                      {/* Tooltip */}
+                      
                       <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center bg-slate-800 dark:bg-slate-900 border border-slate-700 dark:border-slate-800 text-white text-[10px] p-2.5 rounded-xl shadow-xl z-10 pointer-events-none min-w-[130px] transition-all">
                         <p className="font-extrabold text-center border-b border-slate-700 dark:border-slate-800 pb-1 mb-1 text-[11px]">{d.label}</p>
                         <p className="flex items-center gap-1.5 text-slate-200"><span className="w-2 h-2 bg-primary rounded-full shrink-0"></span> User Baru: <strong>{d.userCount}</strong></p>
                         <p className="flex items-center gap-1.5 text-slate-200"><span className="w-2 h-2 bg-emerald-500 rounded-full shrink-0"></span> Kost Baru: <strong>{d.kostCount}</strong></p>
                       </div>
                       
-                      {/* Bars */}
+                      
                       <div className="flex items-end gap-1 sm:gap-1.5 h-[90%] w-full justify-center pb-1">
                         <div 
                           style={{ height: `${d.userHeight}%` }} 
@@ -1908,7 +1908,7 @@ function AdminDashboardContent() {
         </div>
       )}
 
-      {/* Edit Profile Modal */}
+      
       {isEditProfileOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-border shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-200 scrollbar-none">
@@ -1929,7 +1929,7 @@ function AdminDashboardContent() {
 
             <form onSubmit={handleSaveProfile} className="space-y-6 text-xs font-semibold">
               
-              {/* Profile Image / Avatar Selection Area */}
+              
               <div className="space-y-3">
                 <span className="text-slate-700 dark:text-slate-300 font-bold block">Foto Profil Anda</span>
                 <div className="flex flex-col sm:flex-row gap-4 items-center bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-border">
@@ -1965,7 +1965,7 @@ function AdminDashboardContent() {
                   </div>
                 </div>
 
-                {/* Cartoon Avatars Grid */}
+                
                 <div className="space-y-1.5">
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Atau Pilih Karakter Ilustrasi:</span>
                   <div className="grid grid-cols-6 gap-2">
@@ -1985,7 +1985,7 @@ function AdminDashboardContent() {
                 </div>
               </div>
 
-              {/* Form Input Fields */}
+              
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
                 <div className="space-y-1.5">
@@ -2033,7 +2033,7 @@ function AdminDashboardContent() {
 
               </div>
 
-              {/* Action Buttons */}
+              
               <div className="flex justify-end gap-3 pt-4 border-t border-border/80">
                 <button
                   type="button"

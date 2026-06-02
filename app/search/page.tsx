@@ -55,7 +55,7 @@ function SearchResultsContent() {
   const [onlyVerified, setOnlyVerified] = useState<boolean>(false);
   const [onlyAvailable, setOnlyAvailable] = useState<boolean>(false);
 
-  // Active applied states (will only update when "Terapkan" is clicked)
+  
   const [appliedMaxPrice, setAppliedMaxPrice] = useState<number>(3000000);
   const [appliedMaxDistance, setAppliedMaxDistance] = useState<number>(5);
   const [appliedFacilities, setAppliedFacilities] = useState<string[]>([]);
@@ -426,7 +426,7 @@ function SearchResultsContent() {
                 </div>
               </div>
 
-              {/* Tombol Terapkan Filter */}
+              
               <div className="border-t border-border/80 pt-4">
                 <button
                   type="button"
@@ -631,7 +631,7 @@ function SearchResultsContent() {
 
                 </div>
 
-                {/* Kampus Terdekat Card */}
+                
                 <div className="bg-white dark:bg-slate-900 border border-border rounded-2xl p-5 shadow-sm space-y-4">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                     Kampus Terdekat
