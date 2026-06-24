@@ -2,8 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { supabaseAdmin } from '@/app/lib/supabase-admin';
 
-const rateLimitStore = new Map<string, number[]>();
-const otpStore = new Map<string, { otp: string; expires: number; verified: boolean }>();
+const globalForOtp = global as unknown as {
+  otpStore?: Map<string, { otp: string; expires: number; verified: boolean }>;
+  rateLimitStore?: Map<string, number[]>;
+};
+
+const otpStore = globalForOtp.otpStore ?? new Map<string, { otp: string; expires: number; verified: boolean }>();
+const rateLimitStore = globalForOtp.rateLimitStore ?? new Map<string, number[]>();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForOtp.otpStore = otpStore;
+  globalForOtp.rateLimitStore = rateLimitStore;
+}
 
 function checkRateLimit(key: string, limit = 5, windowMs = 60000) {
   const now = Date.now();

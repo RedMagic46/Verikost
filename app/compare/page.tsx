@@ -9,7 +9,10 @@ export default function CompareKosts() {
   const { compareList, kosts, toggleCompare, favorites, toggleFavorite, currentUser, showToast } = useApp();
 
   
-  const comparedKosts = kosts.filter((k) => compareList.includes(k.id));
+  const comparedKosts = kosts.filter((k) => {
+    const isAuthorized = currentUser && (currentUser.role === 'ADMIN' || currentUser.id === k.ownerId);
+    return compareList.includes(k.id) && !k.isDeleted && (k.verifiedStatus !== 'none' || isAuthorized);
+  });
 
   
   const formatPrice = (price: number) => {

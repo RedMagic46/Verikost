@@ -43,7 +43,7 @@ const sortOptions = [
 function SearchResultsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { kosts } = useApp();
+  const { kosts, currentUser } = useApp();
 
   const [queryInput, setQueryInput] = useState('');
   const [selectedCampus, setSelectedCampus] = useState('');
@@ -52,14 +52,12 @@ function SearchResultsContent() {
   const [maxPrice, setMaxPrice] = useState<number>(3000000);
   const [maxDistance, setMaxDistance] = useState<number>(5);
   const [selectedFacilities, setSelectedFacilities] = useState<string[]>([]);
-  const [onlyVerified, setOnlyVerified] = useState<boolean>(false);
   const [onlyAvailable, setOnlyAvailable] = useState<boolean>(false);
 
   
   const [appliedMaxPrice, setAppliedMaxPrice] = useState<number>(3000000);
   const [appliedMaxDistance, setAppliedMaxDistance] = useState<number>(5);
   const [appliedFacilities, setAppliedFacilities] = useState<string[]>([]);
-  const [appliedOnlyVerified, setAppliedOnlyVerified] = useState<boolean>(false);
   const [appliedOnlyAvailable, setAppliedOnlyAvailable] = useState<boolean>(false);
 
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
@@ -135,7 +133,6 @@ function SearchResultsContent() {
     setAppliedMaxPrice(maxPrice);
     setAppliedMaxDistance(maxDistance);
     setAppliedFacilities(selectedFacilities);
-    setAppliedOnlyVerified(onlyVerified);
     setAppliedOnlyAvailable(onlyAvailable);
     setMobileFiltersOpen(false);
     setCurrentPage(1);
@@ -149,13 +146,11 @@ function SearchResultsContent() {
     setMaxPrice(3000000);
     setMaxDistance(5);
     setSelectedFacilities([]);
-    setOnlyVerified(false);
     setOnlyAvailable(false);
 
     setAppliedMaxPrice(3000000);
     setAppliedMaxDistance(5);
     setAppliedFacilities([]);
-    setAppliedOnlyVerified(false);
     setAppliedOnlyAvailable(false);
 
     setActiveMapKostId(null);
@@ -167,15 +162,19 @@ function SearchResultsContent() {
     return (
       maxPrice !== appliedMaxPrice ||
       maxDistance !== appliedMaxDistance ||
-      onlyVerified !== appliedOnlyVerified ||
       onlyAvailable !== appliedOnlyAvailable ||
       selectedFacilities.length !== appliedFacilities.length ||
       !selectedFacilities.every((f) => appliedFacilities.includes(f))
     );
-  }, [maxPrice, appliedMaxPrice, maxDistance, appliedMaxDistance, onlyVerified, appliedOnlyVerified, onlyAvailable, appliedOnlyAvailable, selectedFacilities, appliedFacilities]);
+  }, [maxPrice, appliedMaxPrice, maxDistance, appliedMaxDistance, onlyAvailable, appliedOnlyAvailable, selectedFacilities, appliedFacilities]);
 
   const filteredKosts = useMemo(() => {
     return kosts.filter((kost) => {
+      if (kost.isDeleted) return false;
+
+      const isAuthorized = currentUser && (currentUser.role === 'ADMIN' || currentUser.id === kost.ownerId);
+      if (kost.verifiedStatus === 'none' && !isAuthorized) return false;
+
       if (queryInput.trim()) {
         const key = queryInput.toLowerCase();
         const matchesName = kost.name.toLowerCase().includes(key);
@@ -209,17 +208,20 @@ function SearchResultsContent() {
         if (!hasAll) return false;
       }
 
-      if (appliedOnlyVerified && kost.verifiedStatus === 'none') return false;
-
       if (appliedOnlyAvailable && kost.roomAvailability === 'full') return false;
 
       return true;
     });
-  }, [kosts, queryInput, selectedCampus, selectedGender, appliedMaxPrice, appliedMaxDistance, appliedFacilities, appliedOnlyVerified, appliedOnlyAvailable]);
+  }, [kosts, queryInput, selectedCampus, selectedGender, appliedMaxPrice, appliedMaxDistance, appliedFacilities, appliedOnlyAvailable, currentUser]);
 
   const sortedKosts = useMemo(() => {
-    const items = [...filteredKosts];
-    items.sort((a, b) => {
+    const now = new Date();
+    const isPromoted = (k: Kost) => k.promotionExpiresAt ? new Date(k.promotionExpiresAt) > now : false;
+
+    const promoted = filteredKosts.filter(isPromoted);
+    const regular = filteredKosts.filter((k) => !isPromoted(k));
+
+    const sortFn = (a: Kost, b: Kost) => {
       if (sortBy === 'price-asc') return a.price - b.price;
       if (sortBy === 'price-desc') return b.price - a.price;
       if (sortBy === 'rating-desc') return b.rating - a.rating;
@@ -247,8 +249,12 @@ function SearchResultsContent() {
         return distA - distB;
       }
       return 0;
-    });
-    return items;
+    };
+
+    promoted.sort(sortFn);
+    regular.sort(sortFn);
+
+    return [...promoted, ...regular];
   }, [filteredKosts, sortBy, selectedCampus]);
 
   const paginatedKosts = useMemo(() => {
@@ -382,16 +388,6 @@ function SearchResultsContent() {
 
               
               <div className="space-y-3 border-t border-border/80 pt-4">
-                <label className="flex items-center gap-2.5 cursor-pointer group text-xs text-slate-700 dark:text-slate-300 font-semibold select-none">
-                  <input
-                    type="checkbox"
-                    checked={onlyVerified}
-                    onChange={(e) => setOnlyVerified(e.target.checked)}
-                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary focus:ring-2"
-                  />
-                  <span className="group-hover:text-primary transition-colors">Hanya Terverifikasi Lapangan</span>
-                </label>
-                
                 <label className="flex items-center gap-2.5 cursor-pointer group text-xs text-slate-700 dark:text-slate-300 font-semibold select-none">
                   <input
                     type="checkbox"
@@ -738,16 +734,6 @@ function SearchResultsContent() {
 
               
               <div className="space-y-3 border-t border-border pt-4">
-                <label className="flex items-center gap-2.5 cursor-pointer text-xs text-slate-700 dark:text-slate-300 font-semibold">
-                  <input
-                    type="checkbox"
-                    checked={onlyVerified}
-                    onChange={(e) => setOnlyVerified(e.target.checked)}
-                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary focus:ring-2"
-                  />
-                  <span>Hanya Terverifikasi Lapangan</span>
-                </label>
-                
                 <label className="flex items-center gap-2.5 cursor-pointer text-xs text-slate-700 dark:text-slate-300 font-semibold">
                   <input
                     type="checkbox"

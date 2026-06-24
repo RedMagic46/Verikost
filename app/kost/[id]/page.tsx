@@ -8,6 +8,7 @@ import VerificationBadge from '@/components/VerificationBadge';
 import AvailabilityIndicator from '@/components/AvailabilityIndicator';
 import VideoTour from '@/components/VideoTour';
 import ReviewCard from '@/components/ReviewCard';
+import CheckoutModal from '@/components/CheckoutModal';
 import { Heart, GitCompare, Star, MapPin, Compass, Shield, Wifi, Tv, Refrigerator, Wind, Utensils, Key, ShieldCheck, Phone, CheckCircle2, ChevronLeft, ChevronRight, MessageSquare, Send, Calendar, Users, Building2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -15,7 +16,7 @@ export default function KostDetail() {
   const params = useParams();
   const router = useRouter();
   const { id } = params;
-  const { kosts, reviews, favorites, compareList, toggleFavorite, toggleCompare, addToRecentlyViewed, addReview, currentUser, showToast } = useApp();
+  const { kosts, reviews, favorites, compareList, toggleFavorite, toggleCompare, addToRecentlyViewed, addReview, currentUser, showToast, incrementKostViews, inquiries, bookingPayments, createBookingPayment, executeMockPayment, platformSettings } = useApp();
 
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [activeMediaTab, setActiveMediaTab] = useState<'photos' | 'video'>('photos');
@@ -23,20 +24,40 @@ export default function KostDetail() {
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
   const [reviewSuccess, setReviewSuccess] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
   const kost = kosts.find((k) => k.id === id);
 
-  useEffect(() => {
-    if (kost) {
-      addToRecentlyViewed(kost.id);
-    }
-  }, [id, kost]);
+  const studentInquiry = inquiries?.find(
+    (inq) => inq.studentId === currentUser?.id && inq.kostId === kost?.id
+  );
 
-  if (!kost) {
+  const bookingPayment = studentInquiry
+    ? bookingPayments?.find((p) => p.inquiryId === studentInquiry.id)
+    : null;
+
+  const isAuthorized = currentUser && (currentUser.role === 'ADMIN' || currentUser.id === kost?.ownerId);
+  const isVisible = kost && (!kost.isDeleted && (kost.verifiedStatus !== 'none' || isAuthorized));
+
+  const viewedIdRef = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    if (isVisible && kost && viewedIdRef.current !== kost.id) {
+      viewedIdRef.current = kost.id;
+      addToRecentlyViewed(kost.id);
+      
+      // Increment views count if the visitor is NOT the owner or admin
+      if (!isAuthorized) {
+        incrementKostViews(kost.id);
+      }
+    }
+  }, [id, kost, isVisible, isAuthorized, addToRecentlyViewed, incrementKostViews]);
+
+  if (!isVisible || !kost) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-center p-12 space-y-4">
         <h3 className="text-xl font-bold text-slate-900 dark:text-white">Kos Tidak Ditemukan</h3>
-        <p className="text-sm text-muted-foreground">Kosan dengan ID "{id}" tidak terdaftar di database VeriKost Malang.</p>
+        <p className="text-sm text-muted-foreground">Kosan tidak terdaftar di database VeriKost Malang, atau belum melewati proses verifikasi admin.</p>
         <Link href="/search" className="rounded-full bg-primary text-white font-bold text-xs py-2.5 px-6 shadow">
           Kembali ke Pencarian
         </Link>
@@ -376,6 +397,104 @@ export default function KostDetail() {
                   )}
                 </div>
 
+                {studentInquiry && (
+                  <div className="border-t border-border/80 pt-4 space-y-3">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <Shield className="h-4 w-4 text-primary" />
+                      Status Pemesanan Online
+                    </h4>
+                    
+                    {studentInquiry.status === 'pending' && (
+                      <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-2xl border border-border space-y-1">
+                        <p className="text-[10px] font-bold text-slate-800 dark:text-white">Pengajuan: Pending</p>
+                        <p className="text-[10px] text-muted-foreground leading-relaxed">
+                          Menunggu tanggapan dari pemilik kost untuk menyetujui pemesanan kamar Anda.
+                        </p>
+                      </div>
+                    )}
+
+                    {studentInquiry.status === 'rejected' && (
+                      <div className="bg-rose-50/50 dark:bg-rose-950/10 border border-rose-100 dark:border-rose-900/30 p-3 rounded-2xl space-y-1">
+                        <p className="text-[10px] font-bold text-rose-700 dark:text-rose-400">Pengajuan Ditolak</p>
+                        <p className="text-[10px] text-muted-foreground leading-relaxed">
+                          Maaf, pengajuan booking Anda belum disetujui oleh pemilik kost.
+                        </p>
+                      </div>
+                    )}
+
+                    {studentInquiry.status === 'approved' && (
+                      <div className="space-y-2.5">
+                        {!bookingPayment && (
+                          <div className="bg-emerald-50/40 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-900/30 p-3 rounded-2xl space-y-3">
+                            <div className="space-y-1">
+                              <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-450">Pengajuan Disetujui!</p>
+                              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                                {kost.bookingDpAmount && kost.bookingDpAmount > 0 
+                                  ? `Amankan kamar Anda dengan membayar Down Payment sebesar ${formatPrice(kost.bookingDpAmount)}.`
+                                  : 'Kost ini tidak memerlukan pembayaran DP. Silakan chat pemilik untuk proses check-in.'}
+                              </p>
+                            </div>
+                            {kost.bookingDpAmount && kost.bookingDpAmount > 0 && (
+                              <button
+                                onClick={() => createBookingPayment(studentInquiry.id)}
+                                className="w-full rounded-xl bg-primary hover:brightness-110 text-white font-bold text-[10px] py-2 flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer border-0"
+                              >
+                                <span>Bayar DP Sekarang</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {bookingPayment && bookingPayment.status === 'pending' && (() => {
+                          const displayAmount = platformSettings.commissionChargedTo === 'student'
+                            ? bookingPayment.dpAmount + bookingPayment.commissionAmount
+                            : bookingPayment.dpAmount;
+                          return (
+                            <div className="bg-amber-50/40 dark:bg-amber-950/10 border border-amber-100 dark:border-amber-900/30 p-3 rounded-2xl space-y-3">
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-amber-700 dark:text-amber-455">Tagihan DP Aktif</p>
+                                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                                  Selesaikan pembayaran sebesar **{formatPrice(displayAmount)}** {platformSettings.commissionChargedTo === 'student' && `(termasuk biaya layanan ${formatPrice(bookingPayment.commissionAmount)})`} sebelum kedaluwarsa.
+                                </p>
+                                <p className="text-[9px] text-slate-400 font-bold block pt-1">
+                                  Batas Waktu: 24 Jam sejak pengajuan.
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => setIsCheckoutOpen(true)}
+                                className="w-full rounded-xl bg-primary hover:brightness-110 text-white font-bold text-[10px] py-2 flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer border-0"
+                              >
+                                <span>Bayar Sekarang</span>
+                              </button>
+                            </div>
+                          );
+                        })()}
+
+                        {bookingPayment && bookingPayment.status === 'paid' && (
+                          <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-900/40 p-3 rounded-2xl space-y-1">
+                            <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-455 flex items-center gap-1">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <span>Booking Kamar Sukses!</span>
+                            </p>
+                            <p className="text-[10px] text-muted-foreground leading-relaxed">
+                              DP sebesar **{formatPrice(bookingPayment.dpAmount)}** {platformSettings.commissionChargedTo === 'student' && `(ditambah biaya layanan ${formatPrice(bookingPayment.commissionAmount)})`} telah lunas dibayarkan via {bookingPayment.paymentMethod} pada {new Date(bookingPayment.paidAt || '').toLocaleDateString('id-ID')}.
+                            </p>
+                          </div>
+                        )}
+
+                        {bookingPayment && bookingPayment.status === 'expired' && (
+                          <div className="bg-rose-50/50 dark:bg-rose-950/10 border border-rose-100 dark:border-rose-900/30 p-3 rounded-2xl space-y-1">
+                            <p className="text-[10px] font-bold text-rose-700 dark:text-rose-455">Pembayaran Kedaluwarsa</p>
+                            <p className="text-[10px] text-muted-foreground leading-relaxed">
+                              Batas waktu pembayaran DP terlampaui. Kamar dibebaskan kembali.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="border-t border-border/80 pt-4 space-y-3">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                     Profil Pemilik Kost
@@ -505,6 +624,18 @@ export default function KostDetail() {
         </div>
       </section>
 
+      {bookingPayment && (
+        <CheckoutModal
+          isOpen={isCheckoutOpen}
+          onClose={() => setIsCheckoutOpen(false)}
+          amount={platformSettings.commissionChargedTo === 'student' ? bookingPayment.dpAmount + bookingPayment.commissionAmount : bookingPayment.dpAmount}
+          dpAmount={bookingPayment.dpAmount}
+          commissionAmount={bookingPayment.commissionAmount}
+          commissionChargedTo={platformSettings.commissionChargedTo}
+          paymentId={bookingPayment.id}
+          executeMockPayment={executeMockPayment}
+        />
+      )}
     </div>
   );
 }

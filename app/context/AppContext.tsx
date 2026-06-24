@@ -8,7 +8,14 @@ import {
   Inquiry, 
   User, 
   OwnerVerification, 
-  KostVerification
+  KostVerification,
+  Room,
+  Tenant,
+  Invoice,
+  BookingPayment,
+  Referral,
+  PlatformSettings,
+  OwnerPayment
 } from '../types';
 
 interface AppContextType {
@@ -23,6 +30,12 @@ interface AppContextType {
   users: User[];
   ownerVerifications: OwnerVerification[];
   kostVerifications: KostVerification[];
+  rooms: Room[];
+  tenants: Tenant[];
+  invoices: Invoice[];
+  bookingPayments: BookingPayment[];
+  referrals: Referral[];
+  platformSettings: PlatformSettings;
   switchRole: (role: string) => void;
   toggleFavorite: (id: string) => void;
   toggleCompare: (id: string) => void;
@@ -41,13 +54,51 @@ interface AppContextType {
   
   submitOwnerVerification: (ownerId: string) => Promise<void>;
   submitKostVerification: (kostId: string) => Promise<void>;
+  scheduleKostVerification: (verificationId: string, price: number, visitDate: string) => Promise<void>;
   approveOwner: (verificationId: string, status: 'approved' | 'rejected') => Promise<void>;
-  approveKost: (verificationId: string, status: 'approved' | 'rejected', badge?: 'verified' | 'highly-trusted') => Promise<void>;
+  approveKost: (verificationId: string, status: 'approved' | 'rejected', badge?: 'verified' | 'highly-trusted', expiredAt?: string) => Promise<void>;
   moderateReview: (reviewId: string, action: 'approve' | 'delete') => Promise<void>;
   updateUserRole: (userId: string, role: User['role']) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   resetUserPassword: (userId: string, newPasswordPlain: string) => Promise<void>;
   deleteKost: (kostId: string) => Promise<void>;
+  
+  // Kamar CRUD
+  addRoom: (room: Omit<Room, 'id'>) => Promise<void>;
+  updateRoom: (id: string, room: Partial<Room>) => Promise<void>;
+  deleteRoom: (roomId: string) => Promise<void>;
+  bulkUpdateRoomStatus: (roomIds: string[], status: Room['status']) => Promise<void>;
+
+  // Penyewa CRUD
+  addTenant: (tenant: Omit<Tenant, 'id'>) => Promise<void>;
+  updateTenant: (id: string, tenant: Partial<Tenant>) => Promise<void>;
+  deleteTenant: (tenantId: string) => Promise<void>;
+
+  // Invoices/Tagihan CRUD
+  addInvoice: (invoice: Omit<Invoice, 'id'>) => Promise<void>;
+  updateInvoice: (id: string, invoice: Partial<Invoice>) => Promise<void>;
+  deleteInvoice: (invoiceId: string) => Promise<void>;
+  bulkGenerateInvoices: (kostId: string, month: string, year: string, dueDate: string) => Promise<void>;
+
+  // Review Replies
+  replyToReview: (reviewId: string, replyText: string) => Promise<void>;
+  
+  createBookingPayment: (inquiryId: string) => Promise<void>;
+  executeMockPayment: (paymentId: string, method: string) => Promise<void>;
+  updateReferralCode: (newCode: string) => Promise<boolean>;
+  updatePlatformSettings: (settings: PlatformSettings) => Promise<void>;
+  claimReferralReward: (referralId: string, rewardType: 'small' | 'transaction') => Promise<void>;
+
+  incrementKostViews: (kostId: string) => Promise<void>;
+
+  ownerPayments: OwnerPayment[];
+  createOwnerPayment: (paymentType: 'subscription' | 'promotion' | 'verification', amount: number, durationDays: number, kostId?: string | null) => Promise<string | null>;
+  executeMockOwnerPayment: (paymentId: string, method: string) => Promise<void>;
+  adminAdjustOwnerPayment: (paymentId: string, updates: Partial<OwnerPayment>) => Promise<void>;
+  adminAdjustReferral: (referralId: string, updates: Partial<Referral>) => Promise<void>;
+  adminAdjustOwnerSubscription: (ownerId: string, expiresAt: string | null) => Promise<void>;
+  adminAdjustKostPromotion: (kostId: string, expiresAt: string | null) => Promise<void>;
+
   toast: { message: string; type: 'success' | 'error' | 'info' } | null;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
@@ -64,10 +115,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const currentUserRef = React.useRef<User | null>(null);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
   const [authLoading, setAuthLoading] = useState(true);
   const [ownerVerifications, setOwnerVerifications] = useState<OwnerVerification[]>([]);
   const [kostVerifications, setKostVerifications] = useState<KostVerification[]>([]);
   
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  
+  const [bookingPayments, setBookingPayments] = useState<BookingPayment[]>([]);
+  const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings>({
+    commissionType: 'percentage',
+    commissionValue: 5,
+    commissionChargedTo: 'student',
+    smallReferralReward: 'Voucher Diskon Rp 10.000',
+    transactionReferralReward: 'Voucher Diskon Rp 50.000',
+    ownerSubscriptionRate: 3000,
+    ownerPromotionRate: 5000
+  });
+  
+  const [ownerPayments, setOwnerPayments] = useState<OwnerPayment[]>([]);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -112,12 +184,136 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .from('profiles')
         .select('*');
 
-      if (dbKosts) setKosts(dbKosts);
+      let finalKosts = dbKosts || [];
+      const finalKostVerifs = dbKostVerifs || [];
+
+      if (dbKosts) {
+        finalKosts = dbKosts.map(kost => {
+          const verifs = finalKostVerifs.filter(v => v.kostId === kost.id);
+          if (verifs.length === 0) {
+            return { ...kost, verifiedStatus: 'none', verifiedExpiresAt: null };
+          }
+          const latest = [...verifs].sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
+          
+          const isApproved = latest.status === 'approved';
+          const isExpired = latest.expiredAt && new Date(latest.expiredAt) < new Date();
+
+          if (isApproved && !isExpired) {
+            return { 
+              ...kost, 
+              verifiedStatus: (kost.verifiedStatus === 'highly-trusted' ? 'highly-trusted' : 'verified'),
+              verifiedExpiresAt: latest.expiredAt
+            };
+          }
+          return { ...kost, verifiedStatus: 'none', verifiedExpiresAt: latest.expiredAt || null };
+        });
+      }
+
+      if (dbKosts) setKosts(finalKosts);
       if (dbReviews) setReviews(dbReviews);
       if (dbInquiries) setInquiries(dbInquiries);
       if (dbOwnerVerifs) setOwnerVerifications(dbOwnerVerifs);
       if (dbKostVerifs) setKostVerifications(dbKostVerifs);
       if (dbProfiles) setUsers(dbProfiles);
+
+      // Fetch new tables safely with separate try-catches
+      try {
+        const { data: dbRooms } = await supabase
+          .from('rooms')
+          .select('*')
+          .order('createdAt', { ascending: false });
+        if (dbRooms) setRooms(dbRooms);
+      } catch (err) {
+        console.warn('Rooms table might not exist yet:', err);
+      }
+
+      try {
+        const { data: dbTenants } = await supabase
+          .from('tenants')
+          .select('*')
+          .order('createdAt', { ascending: false });
+        if (dbTenants) setTenants(dbTenants);
+      } catch (err) {
+        console.warn('Tenants table might not exist yet:', err);
+      }
+
+      try {
+        const { data: dbInvoices } = await supabase
+          .from('invoices')
+          .select('*')
+          .order('createdAt', { ascending: false });
+        if (dbInvoices) setInvoices(dbInvoices);
+      } catch (err) {
+        console.warn('Invoices table might not exist yet:', err);
+      }
+
+      try {
+        const { data: dbBookingPayments } = await supabase
+          .from('booking_payments')
+          .select('*')
+          .order('createdAt', { ascending: false });
+        if (dbBookingPayments) setBookingPayments(dbBookingPayments);
+      } catch (err) {
+        console.warn('booking_payments table might not exist yet:', err);
+      }
+
+      try {
+        const { data: dbReferrals } = await supabase
+          .from('referrals')
+          .select('*')
+          .order('createdAt', { ascending: false });
+        
+        if (dbReferrals) {
+          // Fetch referred user details for UI display
+          const { data: dbProfiles } = await supabase
+            .from('profiles')
+            .select('id, fullName, email');
+          
+          const profilesMap = new Map((dbProfiles || []).map(p => [p.id, p]));
+          const referralsWithDetails = dbReferrals.map(ref => {
+            const profile = profilesMap.get(ref.referredId);
+            return {
+              ...ref,
+              referredName: profile?.fullName || 'Siswa Terdaftar',
+              referredEmail: profile?.email || ''
+            };
+          });
+          setReferrals(referralsWithDetails);
+        }
+      } catch (err) {
+        console.warn('referrals table might not exist yet:', err);
+      }
+
+      try {
+        const { data: dbPlatformSettings } = await supabase
+          .from('platform_settings')
+          .select('*');
+        if (dbPlatformSettings && dbPlatformSettings.length > 0) {
+          const settingsObj: Partial<PlatformSettings> = {};
+          dbPlatformSettings.forEach((item) => {
+            if (item.key === 'commissionType') settingsObj.commissionType = item.value as any;
+            if (item.key === 'commissionValue') settingsObj.commissionValue = Number(item.value);
+            if (item.key === 'commissionChargedTo') settingsObj.commissionChargedTo = item.value as any;
+            if (item.key === 'smallReferralReward') settingsObj.smallReferralReward = item.value;
+            if (item.key === 'transactionReferralReward') settingsObj.transactionReferralReward = item.value;
+            if (item.key === 'ownerSubscriptionRate') settingsObj.ownerSubscriptionRate = Number(item.value);
+            if (item.key === 'ownerPromotionRate') settingsObj.ownerPromotionRate = Number(item.value);
+          });
+          setPlatformSettings(prev => ({ ...prev, ...settingsObj }));
+        }
+      } catch (err) {
+        console.warn('platform_settings table might not exist yet:', err);
+      }
+
+      try {
+        const { data: dbOwnerPayments } = await supabase
+          .from('owner_payments')
+          .select('*')
+          .order('createdAt', { ascending: false });
+        if (dbOwnerPayments) setOwnerPayments(dbOwnerPayments);
+      } catch (err) {
+        console.warn('owner_payments table might not exist yet:', err);
+      }
     } catch (err) {
       console.error('Error fetching Supabase data:', err);
     }
@@ -170,7 +366,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const loadUserProfile = async (userId: string) => {
     try {
-      setAuthLoading(true);
+      if (!currentUserRef.current || currentUserRef.current.id !== userId) {
+        setAuthLoading(true);
+      }
       const { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -277,6 +475,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const register = async (newUserFields: Omit<User, 'id' | 'createdAt'>): Promise<{ success: boolean; error?: string }> => {
+    // Lookup referrer id for signup
+    let referrerId: string | null = null;
+    if (newUserFields.role === 'STUDENT' && newUserFields.referredBy) {
+      const { data: refProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('referralCode', newUserFields.referredBy.toLowerCase().trim())
+        .single();
+      if (refProfile) {
+        referrerId = refProfile.id;
+      }
+    }
+
+    const generatedCode = newUserFields.role === 'STUDENT'
+      ? newUserFields.fullName.toLowerCase().replace(/\s+/g, '') + '-' + Math.random().toString(36).substring(2, 6)
+      : null;
+
     const { data, error } = await supabase.auth.signUp({
       email: newUserFields.email,
       password: newUserFields.passwordHash,
@@ -291,7 +506,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           major: newUserFields.major,
           occupation: newUserFields.occupation,
           kostName: newUserFields.kostName,
-          kostAddress: newUserFields.kostAddress
+          kostAddress: newUserFields.kostAddress,
+          referredByCode: newUserFields.referredBy || null
         }
       }
     });
@@ -317,11 +533,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           major: newUserFields.major,
           occupation: newUserFields.occupation,
           kostName: newUserFields.kostName,
-          kostAddress: newUserFields.kostAddress
+          kostAddress: newUserFields.kostAddress,
+          referralCode: generatedCode,
+          referredBy: referrerId
         });
 
       if (profileError) {
         console.error('Database profile registration error:', profileError);
+      }
+
+      if (referrerId) {
+        // Create a referral reward tracking record (Tier 1 is active on sign up, status starts as pending but is created)
+        const { error: refError } = await supabase
+          .from('referrals')
+          .insert({
+            referrerId,
+            referredId: data.user.id,
+            smallRewardStatus: 'pending',
+            transactionRewardStatus: 'pending'
+          });
+        if (refError) {
+          console.error('Referral record creation error:', refError);
+        }
       }
 
       if (newUserFields.role === 'OWNER') {
@@ -406,6 +639,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (!error && data) {
       setKostVerifications(prev => [...prev, data]);
+      setKosts(prev => 
+        prev.map(k => k.id === kostId ? { ...k, verifiedStatus: 'none' } : k)
+      );
+    }
+  };
+
+  const scheduleKostVerification = async (
+    verificationId: string,
+    price: number,
+    visitDate: string
+  ) => {
+    const { error } = await supabase
+      .from('kost_verifications')
+      .update({
+        status: 'scheduled',
+        price,
+        visitDate
+      })
+      .eq('id', verificationId);
+
+    if (!error) {
+      setKostVerifications(prev => 
+        prev.map(kv => kv.id === verificationId ? { ...kv, status: 'scheduled', price, visitDate } : kv)
+      );
+      showToast('Jadwal kunjungan survey berhasil ditentukan.', 'success');
+    } else {
+      console.error('Error scheduling verification:', error);
+      showToast('Gagal menentukan jadwal: ' + error.message, 'error');
     }
   };
 
@@ -426,32 +687,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const approveKost = async (
     verificationId: string,
     status: 'approved' | 'rejected',
-    badge: 'verified' | 'highly-trusted' = 'verified'
+    badge: 'verified' | 'highly-trusted' = 'verified',
+    expiredAt?: string
   ) => {
     const approvedAt = status === 'approved' ? new Date().toISOString().split('T')[0] : undefined;
     const targetVerif = kostVerifications.find(kv => kv.id === verificationId);
     if (!targetVerif) return;
 
+    const updates: Partial<KostVerification> = { status, approvedAt };
+    if (status === 'approved' && expiredAt) {
+      updates.expiredAt = expiredAt;
+    }
+
     const { error } = await supabase
       .from('kost_verifications')
-      .update({ status, approvedAt })
+      .update(updates)
       .eq('id', verificationId);
 
     if (!error) {
       setKostVerifications(prev => 
-        prev.map(kv => kv.id === verificationId ? { ...kv, status, approvedAt } : kv)
+        prev.map(kv => kv.id === verificationId ? { ...kv, ...updates } : kv)
       );
 
-      if (status === 'approved') {
-        await supabase
-          .from('kosts')
-          .update({ verifiedStatus: badge })
-          .eq('id', targetVerif.kostId);
+      const nextStatus = status === 'approved' ? badge : 'none';
+      await supabase
+        .from('kosts')
+        .update({ verifiedStatus: nextStatus })
+        .eq('id', targetVerif.kostId);
 
-        setKosts(prev => 
-          prev.map(k => k.id === targetVerif.kostId ? { ...k, verifiedStatus: badge } : k)
-        );
-      }
+      setKosts(prev => 
+        prev.map(k => k.id === targetVerif.kostId ? { 
+          ...k, 
+          verifiedStatus: nextStatus,
+          verifiedExpiresAt: status === 'approved' ? (expiredAt || null) : null
+        } : k)
+      );
     }
   };
 
@@ -562,12 +832,301 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteKost = async (kostId: string) => {
     const { error } = await supabase
       .from('kosts')
-      .delete()
+      .update({ isDeleted: true })
       .eq('id', kostId);
 
     if (!error) {
-      setKosts(prev => prev.filter(k => k.id !== kostId));
-      setKostVerifications(prev => prev.filter(v => v.kostId !== kostId));
+      setKosts(prev => prev.map(k => k.id === kostId ? { ...k, isDeleted: true } : k));
+      showToast('Kost berhasil diarsipkan.', 'success');
+    } else {
+      console.error('Error soft-deleting kost:', error);
+      showToast('Gagal mengarsipkan kost: ' + error.message, 'error');
+    }
+  };
+
+  // Kamar CRUD
+  const addRoom = async (roomData: Omit<Room, 'id'>) => {
+    const { data, error } = await supabase
+      .from('rooms')
+      .insert(roomData)
+      .select()
+      .single();
+    if (error) {
+      console.error('Error adding room:', error);
+      showToast('Gagal menambahkan kamar: ' + error.message, 'error');
+      throw error;
+    }
+    if (data) {
+      setRooms(prev => [...prev, data]);
+      showToast('Kamar berhasil ditambahkan.', 'success');
+    }
+  };
+
+  const updateRoom = async (id: string, roomData: Partial<Room>) => {
+    const { data, error } = await supabase
+      .from('rooms')
+      .update(roomData)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) {
+      console.error('Error updating room:', error);
+      showToast('Gagal memperbarui kamar: ' + error.message, 'error');
+      throw error;
+    }
+    if (data) {
+      setRooms(prev => prev.map(r => r.id === id ? data : r));
+      showToast('Kamar berhasil diperbarui.', 'success');
+    }
+  };
+
+  const deleteRoom = async (roomId: string) => {
+    const { error } = await supabase
+      .from('rooms')
+      .delete()
+      .eq('id', roomId);
+    if (error) {
+      console.error('Error deleting room:', error);
+      showToast('Gagal menghapus kamar: ' + error.message, 'error');
+      throw error;
+    }
+    setRooms(prev => prev.filter(r => r.id !== roomId));
+    showToast('Kamar berhasil dihapus.', 'success');
+  };
+
+  const bulkUpdateRoomStatus = async (roomIds: string[], status: Room['status']) => {
+    const { error } = await supabase
+      .from('rooms')
+      .update({ status })
+      .in('id', roomIds);
+    if (error) {
+      console.error('Error bulk updating room status:', error);
+      showToast('Gagal memperbarui status kamar: ' + error.message, 'error');
+      throw error;
+    }
+    setRooms(prev => prev.map(r => roomIds.includes(r.id) ? { ...r, status } : r));
+    showToast('Status kamar berhasil diperbarui.', 'success');
+  };
+
+  // Penyewa CRUD
+  const addTenant = async (tenantData: Omit<Tenant, 'id'>) => {
+    const { data, error } = await supabase
+      .from('tenants')
+      .insert(tenantData)
+      .select()
+      .single();
+    if (error) {
+      console.error('Error adding tenant:', error);
+      showToast('Gagal menambahkan penyewa: ' + error.message, 'error');
+      throw error;
+    }
+    if (data) {
+      setTenants(prev => [...prev, data]);
+      // If roomId is set and status is 'active', automatically set room status to 'occupied'
+      if (tenantData.roomId && tenantData.status === 'active') {
+        await updateRoom(tenantData.roomId, { status: 'occupied' });
+      }
+      showToast('Penyewa berhasil ditambahkan.', 'success');
+    }
+  };
+
+  const updateTenant = async (id: string, tenantData: Partial<Tenant>) => {
+    const oldTenant = tenants.find(t => t.id === id);
+    const { data, error } = await supabase
+      .from('tenants')
+      .update(tenantData)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) {
+      console.error('Error updating tenant:', error);
+      showToast('Gagal memperbarui penyewa: ' + error.message, 'error');
+      throw error;
+    }
+    if (data) {
+      setTenants(prev => prev.map(t => t.id === id ? data : t));
+      // Handle room status changes
+      if (oldTenant && tenantData.roomId !== undefined && oldTenant.roomId !== tenantData.roomId) {
+        // Free old room if active
+        if (oldTenant.roomId) {
+          await updateRoom(oldTenant.roomId, { status: 'available' });
+        }
+        // Occupy new room if active
+        if (tenantData.roomId && data.status === 'active') {
+          await updateRoom(tenantData.roomId, { status: 'occupied' });
+        }
+      } else if (oldTenant && tenantData.status !== undefined && oldTenant.status !== tenantData.status) {
+        if (data.status === 'active' && data.roomId) {
+          await updateRoom(data.roomId, { status: 'occupied' });
+        } else if (data.status === 'moved_out' && data.roomId) {
+          await updateRoom(data.roomId, { status: 'available' });
+        }
+      }
+      showToast('Penyewa berhasil diperbarui.', 'success');
+    }
+  };
+
+  const deleteTenant = async (tenantId: string) => {
+    const tenant = tenants.find(t => t.id === tenantId);
+    const { error } = await supabase
+      .from('tenants')
+      .delete()
+      .eq('id', tenantId);
+    if (error) {
+      console.error('Error deleting tenant:', error);
+      showToast('Gagal menghapus penyewa: ' + error.message, 'error');
+      throw error;
+    }
+    setTenants(prev => prev.filter(t => t.id !== tenantId));
+    if (tenant && tenant.roomId && tenant.status === 'active') {
+      await updateRoom(tenant.roomId, { status: 'available' });
+    }
+    showToast('Penyewa berhasil dihapus.', 'success');
+  };
+
+  // Invoices/Tagihan CRUD
+  const addInvoice = async (invoiceData: Omit<Invoice, 'id'>) => {
+    const { data, error } = await supabase
+      .from('invoices')
+      .insert(invoiceData)
+      .select()
+      .single();
+    if (error) {
+      console.error('Error adding invoice:', error);
+      showToast('Gagal menambahkan tagihan: ' + error.message, 'error');
+      throw error;
+    }
+    if (data) {
+      setInvoices(prev => [...prev, data]);
+      showToast('Tagihan berhasil dibuat.', 'success');
+    }
+  };
+
+  const updateInvoice = async (id: string, invoiceData: Partial<Invoice>) => {
+    const { data, error } = await supabase
+      .from('invoices')
+      .update(invoiceData)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) {
+      console.error('Error updating invoice:', error);
+      showToast('Gagal memperbarui tagihan: ' + error.message, 'error');
+      throw error;
+    }
+    if (data) {
+      setInvoices(prev => prev.map(inv => inv.id === id ? data : inv));
+      showToast('Tagihan berhasil diperbarui.', 'success');
+    }
+  };
+
+  const deleteInvoice = async (invoiceId: string) => {
+    const { error } = await supabase
+      .from('invoices')
+      .delete()
+      .eq('id', invoiceId);
+    if (error) {
+      console.error('Error deleting invoice:', error);
+      showToast('Gagal menghapus tagihan: ' + error.message, 'error');
+      throw error;
+    }
+    setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
+    showToast('Tagihan berhasil dihapus.', 'success');
+  };
+
+  const bulkGenerateInvoices = async (kostId: string, month: string, year: string, dueDate: string) => {
+    const activeTenants = tenants.filter(t => t.kostId === kostId && t.status === 'active');
+    if (activeTenants.length === 0) {
+      showToast('Tidak ada penyewa aktif untuk kost ini.', 'error');
+      return;
+    }
+
+    const tenantsToBill = activeTenants.filter(t => {
+      const alreadyHasInvoice = invoices.some(inv => 
+        inv.tenantId === t.id && 
+        inv.periodMonth === month && 
+        inv.periodYear === year
+      );
+      return !alreadyHasInvoice;
+    });
+
+    if (tenantsToBill.length === 0) {
+      showToast('Semua penyewa aktif sudah memiliki tagihan untuk periode ini.', 'info');
+      return;
+    }
+
+    const newInvoicesPayload = tenantsToBill.map(t => {
+      const room = rooms.find(r => r.id === t.roomId);
+      const amount = room ? room.price : (kosts.find(k => k.id === kostId)?.price || 1000000);
+      
+      return {
+        tenantId: t.id,
+        roomId: t.roomId || null,
+        kostId: kostId,
+        periodMonth: month,
+        periodYear: year,
+        amount: amount,
+        dueDate: dueDate,
+        status: 'unpaid' as const,
+        notes: `Tagihan bulanan otomatis untuk periode ${month}/${year}`
+      };
+    });
+
+    const { data, error } = await supabase
+      .from('invoices')
+      .insert(newInvoicesPayload)
+      .select();
+
+    if (error) {
+      console.error('Error bulk generating invoices:', error);
+      showToast('Gagal membuat tagihan: ' + error.message, 'error');
+      throw error;
+    }
+
+    if (data) {
+      setInvoices(prev => [...prev, ...data]);
+      showToast(`${data.length} tagihan berhasil dibuat untuk periode ${month}/${year}.`, 'success');
+    }
+  };
+
+  // Balas Review
+  const replyToReview = async (reviewId: string, replyText: string) => {
+    const { error } = await supabase
+      .from('reviews')
+      .update({ ownerReply: replyText })
+      .eq('id', reviewId);
+
+    if (error) {
+      console.error('Error replying to review:', error);
+      showToast('Gagal menyimpan balasan: ' + error.message, 'error');
+      throw error;
+    }
+
+    setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, ownerReply: replyText } : r));
+    showToast('Balasan ulasan berhasil disimpan.', 'success');
+  };
+
+  const incrementKostViews = async (kostId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('kosts')
+        .select('views')
+        .eq('id', kostId)
+        .single();
+        
+      if (!error && data) {
+        const nextViews = (data.views || 0) + 1;
+        await supabase
+          .from('kosts')
+          .update({ views: nextViews })
+          .eq('id', kostId);
+          
+        setKosts(prev => 
+          prev.map(k => k.id === kostId ? { ...k, views: nextViews } : k)
+        );
+      }
+    } catch (err) {
+      console.error('Error incrementing views:', err);
     }
   };
 
@@ -719,6 +1278,463 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const createBookingPayment = async (inquiryId: string) => {
+    try {
+      const inquiry = inquiries.find(i => i.id === inquiryId);
+      if (!inquiry) {
+        showToast('Inquiry tidak ditemukan.', 'error');
+        return;
+      }
+      
+      const kost = kosts.find(k => k.id === inquiry.kostId);
+      if (!kost) {
+        showToast('Kost tidak ditemukan.', 'error');
+        return;
+      }
+
+      const dpAmount = kost.bookingDpAmount || 0;
+      if (dpAmount <= 0) {
+        showToast('Kost ini tidak memerlukan pembayaran DP.', 'info');
+        return;
+      }
+
+      let commissionAmount = 0;
+      if (platformSettings.commissionType === 'percentage') {
+        commissionAmount = Math.round((dpAmount * platformSettings.commissionValue) / 100);
+      } else {
+        commissionAmount = platformSettings.commissionValue;
+      }
+
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+      const newPayment = {
+        inquiryId,
+        studentId: inquiry.studentId,
+        kostId: inquiry.kostId,
+        roomId: null,
+        dpAmount,
+        commissionAmount,
+        status: 'pending' as const,
+        expiresAt
+      };
+
+      const { data, error } = await supabase
+        .from('booking_payments')
+        .insert(newPayment)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating booking payment:', error);
+        showToast('Gagal membuat tagihan DP: ' + error.message, 'error');
+        return;
+      }
+
+      if (data) {
+        setBookingPayments(prev => [data, ...prev]);
+        showToast('Tagihan pembayaran DP sebesar ' + new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(dpAmount) + ' telah dibuat.', 'success');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast('Terjadi kesalahan saat membuat tagihan.', 'error');
+    }
+  };
+
+  const executeMockPayment = async (paymentId: string, method: string) => {
+    try {
+      const payment = bookingPayments.find(p => p.id === paymentId);
+      if (!payment) {
+        showToast('Tagihan pembayaran tidak ditemukan.', 'error');
+        return;
+      }
+
+      const paidAt = new Date().toISOString();
+      const { data: updatedPayment, error: payError } = await supabase
+        .from('booking_payments')
+        .update({
+          status: 'paid' as const,
+          paidAt,
+          paymentMethod: method
+        })
+        .eq('id', paymentId)
+        .select()
+        .single();
+
+      if (payError || !updatedPayment) {
+        console.error('Payment execution error:', payError);
+        showToast('Gagal memproses pembayaran: ' + payError?.message, 'error');
+        return;
+      }
+
+      // Update related inquiry status to 'approved'
+      await supabase
+        .from('inquiries')
+        .update({ status: 'approved' })
+        .eq('id', payment.inquiryId);
+
+      // Check if student has a referrer
+      const { data: studentProfile } = await supabase
+        .from('profiles')
+        .select('referredBy')
+        .eq('id', payment.studentId)
+        .single();
+
+      if (studentProfile && studentProfile.referredBy) {
+        const { data: refRecord } = await supabase
+          .from('referrals')
+          .select('*')
+          .eq('referrerId', studentProfile.referredBy)
+          .eq('referredId', payment.studentId)
+          .single();
+
+        if (refRecord) {
+          if (refRecord.transactionRewardStatus === 'pending') {
+            await supabase
+              .from('referrals')
+              .update({ transactionRewardStatus: 'earned' })
+              .eq('id', refRecord.id);
+          }
+        }
+      }
+
+      // Update state local variables
+      setBookingPayments(prev => prev.map(p => p.id === paymentId ? updatedPayment : p));
+      setInquiries(prev => prev.map(i => i.id === payment.inquiryId ? { ...i, status: 'approved' as const } : i));
+      
+      showToast('Pembayaran booking DP berhasil diproses!', 'success');
+      await fetchSupabaseData();
+    } catch (err: any) {
+      console.error(err);
+      showToast('Terjadi kesalahan saat memproses pembayaran.', 'error');
+    }
+  };
+
+  const updateReferralCode = async (newCode: string): Promise<boolean> => {
+    if (!currentUser) return false;
+    const formattedCode = newCode.toLowerCase().replace(/\s+/g, '').trim();
+    if (!formattedCode) {
+      showToast('Kode referral tidak boleh kosong.', 'error');
+      return false;
+    }
+
+    try {
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('referralCode', formattedCode)
+        .neq('id', currentUser.id);
+
+      if (existingUser && existingUser.length > 0) {
+        showToast('Kode referral "' + formattedCode + '" sudah digunakan oleh mahasiswa lain.', 'error');
+        return false;
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ referralCode: formattedCode })
+        .eq('id', currentUser.id);
+
+      if (error) {
+        console.error('Error updating referral code:', error);
+        showToast('Gagal memperbarui kode referral: ' + error.message, 'error');
+        return false;
+      }
+
+      setCurrentUser(prev => prev ? { ...prev, referralCode: formattedCode } : null);
+      setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, referralCode: formattedCode } : u));
+      showToast('Kode referral berhasil diperbarui!', 'success');
+      return true;
+    } catch (err: any) {
+      console.error(err);
+      showToast('Terjadi kesalahan.', 'error');
+      return false;
+    }
+  };
+
+  const updatePlatformSettings = async (settings: PlatformSettings) => {
+    try {
+      const keys = Object.keys(settings) as Array<keyof PlatformSettings>;
+      
+      const promises = keys.map(async (key) => {
+        return supabase
+          .from('platform_settings')
+          .upsert({
+            key,
+            value: settings[key].toString()
+          });
+      });
+
+      await Promise.all(promises);
+      
+      setPlatformSettings(settings);
+      showToast('Pengaturan platform berhasil diperbarui.', 'success');
+    } catch (err: any) {
+      console.error(err);
+      showToast('Gagal memperbarui pengaturan platform.', 'error');
+    }
+  };
+
+  const claimReferralReward = async (referralId: string, rewardType: 'small' | 'transaction') => {
+    try {
+      const updateField = rewardType === 'small' 
+        ? { smallRewardStatus: 'claimed' as const } 
+        : { transactionRewardStatus: 'claimed' as const };
+
+      const { error } = await supabase
+        .from('referrals')
+        .update(updateField)
+        .eq('id', referralId);
+
+      if (error) {
+        showToast('Gagal mengklaim reward: ' + error.message, 'error');
+        return;
+      }
+
+      setReferrals(prev => prev.map(r => r.id === referralId ? { ...r, ...updateField } : r));
+      const rewardDesc = rewardType === 'small' ? platformSettings.smallReferralReward : platformSettings.transactionReferralReward;
+      showToast(`Sukses klaim reward! Kode voucher [${rewardDesc}] telah diaktifkan di akun Anda.`, 'success');
+    } catch (err: any) {
+      console.error(err);
+      showToast('Terjadi kesalahan saat mengklaim reward.', 'error');
+    }
+  };
+
+  const createOwnerPayment = async (
+    paymentType: 'subscription' | 'promotion' | 'verification', 
+    amount: number, 
+    durationDays: number, 
+    kostId: string | null = null
+  ): Promise<string | null> => {
+    if (!currentUser) return null;
+    try {
+      const newPayment = {
+        ownerId: currentUser.id,
+        kostId,
+        amount,
+        paymentType,
+        status: 'pending' as const,
+        durationDays
+      };
+      const { data, error } = await supabase
+        .from('owner_payments')
+        .insert(newPayment)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating owner payment:', error);
+        showToast('Gagal membuat tagihan pembayaran: ' + error.message, 'error');
+        return null;
+      }
+
+      if (data) {
+        setOwnerPayments(prev => [data, ...prev]);
+        return data.id;
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Terjadi kesalahan saat membuat tagihan.', 'error');
+    }
+    return null;
+  };
+
+  const executeMockOwnerPayment = async (paymentId: string, method: string) => {
+    try {
+      const payment = ownerPayments.find(p => p.id === paymentId);
+      if (!payment) {
+        showToast('Tagihan pembayaran tidak ditemukan.', 'error');
+        return;
+      }
+      const paidAt = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + payment.durationDays * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: updatedPayment, error: payError } = await supabase
+        .from('owner_payments')
+        .update({
+          status: 'paid' as const,
+          paidAt,
+          expiresAt
+        })
+        .eq('id', paymentId)
+        .select()
+        .single();
+
+      if (payError || !updatedPayment) {
+        console.error('Owner payment execution error:', payError);
+        showToast('Gagal memproses pembayaran: ' + payError?.message, 'error');
+        return;
+      }
+
+      if (payment.paymentType === 'subscription') {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ subscriptionExpiresAt: expiresAt })
+          .eq('id', payment.ownerId);
+        
+        if (!profileError) {
+          if (currentUser && currentUser.id === payment.ownerId) {
+            setCurrentUser(prev => prev ? { ...prev, subscriptionExpiresAt: expiresAt } : null);
+          }
+          setUsers(prev => prev.map(u => u.id === payment.ownerId ? { ...u, subscriptionExpiresAt: expiresAt } : u));
+        }
+      } else if (payment.paymentType === 'promotion' && payment.kostId) {
+        const { error: kostError } = await supabase
+          .from('kosts')
+          .update({ promotionExpiresAt: expiresAt })
+          .eq('id', payment.kostId);
+
+        if (!kostError) {
+          setKosts(prev => prev.map(k => k.id === payment.kostId ? { ...k, promotionExpiresAt: expiresAt } : k));
+        }
+      } else if (payment.paymentType === 'verification' && payment.kostId) {
+        const scheduledVerif = kostVerifications.find(
+          v => v.kostId === payment.kostId && v.status === 'scheduled'
+        );
+        if (scheduledVerif) {
+          const { error: verifError } = await supabase
+            .from('kost_verifications')
+            .update({ 
+              status: 'paid' as const,
+              paymentId: paymentId
+            })
+            .eq('id', scheduledVerif.id);
+            
+          if (!verifError) {
+            setKostVerifications(prev => 
+              prev.map(kv => kv.id === scheduledVerif.id ? { 
+                ...kv, 
+                status: 'paid', 
+                paymentId 
+              } : kv)
+            );
+          } else {
+            console.error('Error updating verification status after payment:', verifError);
+          }
+        }
+      }
+
+      setOwnerPayments(prev => prev.map(p => p.id === paymentId ? updatedPayment : p));
+      showToast('Pembayaran berhasil diproses!', 'success');
+      await fetchSupabaseData();
+    } catch (err) {
+      console.error(err);
+      showToast('Terjadi kesalahan saat memproses pembayaran.', 'error');
+    }
+  };
+
+  const adminAdjustOwnerPayment = async (paymentId: string, updates: Partial<OwnerPayment>) => {
+    try {
+      const { data: updatedPayment, error } = await supabase
+        .from('owner_payments')
+        .update(updates)
+        .eq('id', paymentId)
+        .select()
+        .single();
+
+      if (error) {
+        showToast('Gagal menyesuaikan pembayaran: ' + error.message, 'error');
+        return;
+      }
+
+      if (updatedPayment) {
+        setOwnerPayments(prev => prev.map(p => p.id === paymentId ? updatedPayment : p));
+        
+        if (updatedPayment.status === 'paid' && updates.expiresAt) {
+          if (updatedPayment.paymentType === 'subscription') {
+            await supabase
+              .from('profiles')
+              .update({ subscriptionExpiresAt: updates.expiresAt })
+              .eq('id', updatedPayment.ownerId);
+            
+            if (currentUser && currentUser.id === updatedPayment.ownerId) {
+              setCurrentUser(prev => prev ? { ...prev, subscriptionExpiresAt: updates.expiresAt } : null);
+            }
+            setUsers(prev => prev.map(u => u.id === updatedPayment.ownerId ? { ...u, subscriptionExpiresAt: updates.expiresAt } : u));
+          } else if (updatedPayment.paymentType === 'promotion' && updatedPayment.kostId) {
+            await supabase
+              .from('kosts')
+              .update({ promotionExpiresAt: updates.expiresAt })
+              .eq('id', updatedPayment.kostId);
+            setKosts(prev => prev.map(k => k.id === updatedPayment.kostId ? { ...k, promotionExpiresAt: updates.expiresAt } : k));
+          }
+        }
+        showToast('Data pembayaran berhasil disesuaikan.', 'success');
+        await fetchSupabaseData();
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Terjadi kesalahan.', 'error');
+    }
+  };
+
+  const adminAdjustReferral = async (referralId: string, updates: Partial<Referral>) => {
+    try {
+      const { data: updatedReferral, error } = await supabase
+        .from('referrals')
+        .update(updates)
+        .eq('id', referralId)
+        .select()
+        .single();
+
+      if (error) {
+        showToast('Gagal menyesuaikan referral: ' + error.message, 'error');
+        return;
+      }
+
+      if (updatedReferral) {
+        setReferrals(prev => prev.map(r => r.id === referralId ? { ...r, ...updatedReferral } : r));
+        showToast('Data referral berhasil disesuaikan.', 'success');
+        await fetchSupabaseData();
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Terjadi kesalahan.', 'error');
+    }
+  };
+
+  const adminAdjustOwnerSubscription = async (ownerId: string, expiresAt: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ subscriptionExpiresAt: expiresAt })
+        .eq('id', ownerId);
+
+      if (error) {
+        showToast('Gagal menyesuaikan langganan: ' + error.message, 'error');
+        return;
+      }
+
+      setUsers(prev => prev.map(u => u.id === ownerId ? { ...u, subscriptionExpiresAt: expiresAt } : u));
+      if (currentUser && currentUser.id === ownerId) {
+        setCurrentUser(prev => prev ? { ...prev, subscriptionExpiresAt: expiresAt } : null);
+      }
+      showToast('Status langganan owner berhasil diperbarui.', 'success');
+    } catch (err: any) {
+      console.error(err);
+      showToast('Terjadi kesalahan saat menyesuaikan langganan.', 'error');
+    }
+  };
+
+  const adminAdjustKostPromotion = async (kostId: string, expiresAt: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('kosts')
+        .update({ promotionExpiresAt: expiresAt })
+        .eq('id', kostId);
+
+      if (error) {
+        showToast('Gagal menyesuaikan promosi: ' + error.message, 'error');
+        return;
+      }
+
+      setKosts(prev => prev.map(k => k.id === kostId ? { ...k, promotionExpiresAt: expiresAt } : k));
+      showToast('Status promosi kost berhasil diperbarui.', 'success');
+    } catch (err: any) {
+      console.error(err);
+      showToast('Terjadi kesalahan saat menyesuaikan promosi.', 'error');
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -733,6 +1749,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         users,
         ownerVerifications,
         kostVerifications,
+        rooms,
+        tenants,
+        invoices,
+        bookingPayments,
+        referrals,
+        platformSettings,
         switchRole,
         toggleFavorite,
         toggleCompare,
@@ -749,6 +1771,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         adminUpdateProfile,
         submitOwnerVerification,
         submitKostVerification,
+        scheduleKostVerification,
         approveOwner,
         approveKost,
         moderateReview,
@@ -756,6 +1779,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteUser,
         resetUserPassword,
         deleteKost,
+        addRoom,
+        updateRoom,
+        deleteRoom,
+        bulkUpdateRoomStatus,
+        addTenant,
+        updateTenant,
+        deleteTenant,
+        addInvoice,
+        updateInvoice,
+        deleteInvoice,
+        bulkGenerateInvoices,
+        replyToReview,
+        incrementKostViews,
+        createBookingPayment,
+        executeMockPayment,
+        updateReferralCode,
+        updatePlatformSettings,
+        claimReferralReward,
+        ownerPayments,
+        createOwnerPayment,
+        executeMockOwnerPayment,
+        adminAdjustOwnerPayment,
+        adminAdjustReferral,
+        adminAdjustOwnerSubscription,
+        adminAdjustKostPromotion,
         toast,
         showToast
       }}

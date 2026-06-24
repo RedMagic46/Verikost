@@ -38,9 +38,21 @@ export default function Home() {
     router.push(`/search?${params.toString()}`);
   };
 
-  const featuredKosts = kosts
-    .filter((k) => k.verifiedStatus === 'highly-trusted' || k.verifiedStatus === 'verified')
-    .slice(0, 3);
+  const featuredKosts = React.useMemo(() => {
+    const now = new Date();
+    const verified = kosts.filter((k) => k.verifiedStatus === 'highly-trusted' || k.verifiedStatus === 'verified');
+    return [...verified]
+      .sort((a, b) => {
+        const promoA = a.promotionExpiresAt ? new Date(a.promotionExpiresAt) > now : false;
+        const promoB = b.promotionExpiresAt ? new Date(b.promotionExpiresAt) > now : false;
+        if (promoA && !promoB) return -1;
+        if (!promoA && promoB) return 1;
+        if (a.verifiedStatus === 'highly-trusted' && b.verifiedStatus !== 'highly-trusted') return -1;
+        if (a.verifiedStatus !== 'highly-trusted' && b.verifiedStatus === 'highly-trusted') return 1;
+        return 0;
+      })
+      .slice(0, 3);
+  }, [kosts]);
 
   const stats = [
     { label: 'Kost Terverifikasi', value: '150+' },
