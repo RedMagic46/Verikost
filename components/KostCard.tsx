@@ -81,10 +81,14 @@ export default function KostCard({ kost, viewType = 'grid' }: KostCardProps) {
             <div className="flex items-center justify-between gap-2">
               <AvailabilityIndicator availability={kost.roomAvailability} />
               
-              <div className="flex items-center gap-1 text-amber-500 font-semibold text-sm">
-                <Star className="h-4 w-4 fill-amber-500 text-amber-500 shrink-0" />
-                <span>{kost.rating.toFixed(1)}</span>
-              </div>
+              {kost.rating !== null && kost.rating !== undefined ? (
+                <div className="flex items-center gap-1 text-amber-500 font-semibold text-sm">
+                  <Star className="h-4 w-4 fill-amber-500 text-amber-500 shrink-0" />
+                  <span>{kost.rating.toFixed(1)}</span>
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground font-semibold">Belum ada ulasan</span>
+              )}
             </div>
 
             
@@ -211,10 +215,14 @@ export default function KostCard({ kost, viewType = 'grid' }: KostCardProps) {
           <div className="flex items-center justify-between gap-2">
             <AvailabilityIndicator availability={kost.roomAvailability} />
             
-            <div className="flex items-center gap-1 text-amber-500 font-semibold text-xs">
-              <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500 shrink-0" />
-              <span>{kost.rating.toFixed(1)}</span>
-            </div>
+            {kost.rating !== null && kost.rating !== undefined ? (
+              <div className="flex items-center gap-1 text-amber-500 font-semibold text-xs">
+                <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500 shrink-0" />
+                <span>{kost.rating.toFixed(1)}</span>
+              </div>
+            ) : (
+              <span className="text-[10px] text-muted-foreground font-semibold">Belum ada ulasan</span>
+            )}
           </div>
 
           

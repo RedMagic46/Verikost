@@ -1,26 +1,19 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '@/app/context/AppContext';
 import { supabase } from '@/app/lib/supabase';
 import { User, Kost } from '@/app/types';
 import { 
   Send, 
   Search, 
-  ArrowLeft, 
   MessageSquare, 
   Phone, 
-  Mail, 
-  MapPin, 
-  ShieldCheck, 
-  UserCheck, 
-  Home, 
   Clock, 
   X,
-  Compass
+  ShieldCheck,
+  Building2
 } from 'lucide-react';
-import Link from 'next/link';
 
 interface ChatMessage {
   id: string;
@@ -75,13 +68,8 @@ const defaultSeedMessages: ChatMessage[] = [
   }
 ];
 
-function ChatContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { currentUser, authLoading, users, kosts, showToast } = useApp();
-  
-  const targetOwnerId = searchParams.get('ownerId');
-  const targetKostName = searchParams.get('kostName');
+export default function ChatTab() {
+  const { currentUser, authLoading, users, kosts } = useApp();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
@@ -114,6 +102,7 @@ function ChatContent() {
         if (data && data.length > 0) {
           setMessages(data as ChatMessage[]);
         } else {
+          // If no chats in DB, load local seed cache/messages
           const savedChats = localStorage.getItem('vk_chats_cache');
           if (savedChats) {
             setMessages(JSON.parse(savedChats));
@@ -124,19 +113,15 @@ function ChatContent() {
         }
       } catch (err) {
         console.warn('Supabase chats loading failed, falling back to LocalStorage cache:', err);
-        loadSeedFallback();
+        const savedChats = localStorage.getItem('vk_chats_cache');
+        if (savedChats) {
+          setMessages(JSON.parse(savedChats));
+        } else {
+          setMessages(defaultSeedMessages);
+          localStorage.setItem('vk_chats_cache', JSON.stringify(defaultSeedMessages));
+        }
+        setIsDbLoaded(false);
       }
-    };
-
-    const loadSeedFallback = () => {
-      const savedChats = localStorage.getItem('vk_chats_cache');
-      if (savedChats) {
-        setMessages(JSON.parse(savedChats));
-      } else {
-        setMessages(defaultSeedMessages);
-        localStorage.setItem('vk_chats_cache', JSON.stringify(defaultSeedMessages));
-      }
-      setIsDbLoaded(false);
     };
 
     loadChats();
@@ -164,24 +149,6 @@ function ChatContent() {
     };
   }, [currentUser]);
 
-  useEffect(() => {
-    if (targetOwnerId && currentUser && users.some(u => u.id === targetOwnerId)) {
-      setActiveChannelId(targetOwnerId);
-      setIsMobileDetailActive(true);
-
-      if (targetKostName) {
-        setInputMessage(`Halo, saya tertarik dengan "${targetKostName}". Apakah masih ada kamar kosong yang tersedia untuk disurvei?`);
-      }
-    }
-  }, [targetOwnerId, targetKostName, users, currentUser]);
-
-  useEffect(() => {
-    if (!authLoading && !currentUser) {
-      showToast('Silakan masuk akun terlebih dahulu untuk menggunakan fitur chat.', 'info');
-      router.push('/login');
-    }
-  }, [currentUser, authLoading, router]);
-
   const channels = useMemo(() => {
     if (!currentUser || users.length === 0) return [];
 
@@ -194,10 +161,6 @@ function ChatContent() {
         partnerIds.add(msg.senderId);
       }
     });
-
-    if (targetOwnerId && targetOwnerId !== currentUser.id) {
-      partnerIds.add(targetOwnerId);
-    }
 
     const partnerList = users.filter((u) => partnerIds.has(u.id) && u.id !== currentUser.id);
 
@@ -216,15 +179,14 @@ function ChatContent() {
         lastMessageTime: lastMsg ? new Date(lastMsg.createdAt) : new Date(partner.createdAt || Date.now()),
       };
     }).sort((a, b) => b.lastMessageTime.getTime() - a.lastMessageTime.getTime());
-  }, [messages, currentUser, users, targetOwnerId]);
+  }, [messages, currentUser, users]);
 
   const filteredChannels = useMemo(() => {
     if (!searchQuery.trim()) return channels;
     const query = searchQuery.toLowerCase().trim();
     return channels.filter((ch) => 
       ch.partner.fullName.toLowerCase().includes(query) ||
-      ch.partner.email.toLowerCase().includes(query) ||
-      (ch.partner.kostName || '').toLowerCase().includes(query)
+      ch.partner.email.toLowerCase().includes(query)
     );
   }, [channels, searchQuery]);
 
@@ -289,9 +251,9 @@ function ChatContent() {
 
   if (authLoading || !currentUser) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center min-h-[80vh] space-y-4 dark:bg-slate-950">
-        <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
-        <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Memuat enkripsi pesan...</p>
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Memuat enkripsi pesan...</p>
       </div>
     );
   }
@@ -307,49 +269,26 @@ function ChatContent() {
     ADMIN: 'Super Admin'
   };
 
-  const partnerDashboardLink = 
-    currentUser.role === 'OWNER' 
-      ? '/owner' 
-      : currentUser.role === 'ADMIN'
-      ? '/admin'
-      : '/dashboard';
-
   return (
-    <div className="flex-1 flex h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-950 overflow-hidden font-medium text-xs">
+    <div className="flex h-[calc(100vh-13rem)] bg-white dark:bg-slate-900 border border-border/80 rounded-3xl overflow-hidden shadow-sm text-xs font-semibold text-slate-800 dark:text-slate-200">
       
-      <aside className={`w-full md:w-80 lg:w-96 bg-white dark:bg-slate-900 border-r border-border/80 flex flex-col shrink-0 transition-all ${
+      {/* Sidebar List */}
+      <aside className={`w-full md:w-80 border-r border-border/80 flex flex-col shrink-0 transition-all ${
         isMobileDetailActive ? 'hidden md:flex' : 'flex'
       }`}>
         
-        <div className="p-4 border-b border-border/60 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link 
-              href={partnerDashboardLink}
-              className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 transition-colors text-slate-600 dark:text-slate-200"
-              title="Kembali ke Dashboard"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-            <div>
-              <p className="font-extrabold text-slate-800 dark:text-white leading-tight">Room Direct Chat</p>
-              <p className="text-[10px] text-primary font-black uppercase tracking-widest mt-0.5">Secure Hub</p>
-            </div>
-          </div>
-          
-          <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" title="Terhubung ke server"></div>
-        </div>
-
-        <div className="p-4 border-b border-border/50 bg-slate-50/50 dark:bg-slate-800/10">
+        {/* Search Header */}
+        <div className="p-4 border-b border-border/50 bg-slate-50/50 dark:bg-slate-800/10 shrink-0">
           <div className="relative">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
               <Search className="h-4 w-4" />
             </span>
             <input
               type="text"
-              placeholder="Cari chat berdasarkan nama..."
+              placeholder="Cari kontak chat..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white dark:bg-slate-800 rounded-xl border border-border/80 pl-9 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-800 dark:text-white font-semibold shadow-inner"
+              className="w-full bg-white dark:bg-slate-850 rounded-xl border border-border/80 pl-9 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-800 dark:text-white placeholder-slate-400"
             />
             {searchQuery && (
               <button 
@@ -362,13 +301,14 @@ function ChatContent() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-none">
+        {/* Channel list */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-1.5 scrollbar-thin">
           {filteredChannels.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 space-y-3">
-              <MessageSquare className="h-8 w-8 mx-auto text-slate-300" />
-              <p className="font-bold">Belum Ada Percakapan</p>
-              <p className="text-[10px] text-slate-400 leading-normal">
-                {searchQuery ? 'Tidak ada kontak yang cocok dengan pencarian Anda.' : 'Pesan chat dari halaman detail kost untuk mulai berinteraksi dengan pemilik.'}
+            <div className="p-8 text-center text-slate-400 space-y-2">
+              <MessageSquare className="h-8 w-8 mx-auto text-slate-350" />
+              <p className="font-extrabold text-slate-500">Belum Ada Chat</p>
+              <p className="text-[10px] leading-relaxed">
+                {searchQuery ? 'Tidak ada kontak yang cocok.' : 'Pesan dari mahasiswa akan muncul di sini secara otomatis.'}
               </p>
             </div>
           ) : (
@@ -382,44 +322,40 @@ function ChatContent() {
                     setActiveChannelId(ch.partner.id);
                     setIsMobileDetailActive(true);
                   }}
-                  className={`w-full p-3.5 flex items-start gap-3 text-left transition-all duration-200 cursor-pointer rounded-2xl border relative overflow-hidden group ${
+                  className={`w-full p-3 flex items-start gap-3 text-left transition-all duration-150 cursor-pointer rounded-2xl border relative ${
                     isSelected 
-                      ? 'bg-primary/10 dark:bg-slate-800/70 border-primary/10 shadow-sm' 
-                      : 'bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/30'
+                      ? 'bg-primary/10 border-primary/10 dark:bg-slate-800/70 shadow-sm' 
+                      : 'bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/20'
                   }`}
                 >
                   {isSelected && (
-                    <div className="absolute left-0 top-3 bottom-3 w-1 bg-primary rounded-r-full"></div>
+                    <div className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-primary rounded-r-full"></div>
                   )}
 
-                  <div className="relative shrink-0 pl-1">
+                  <div className="relative shrink-0">
                     <img
                       src={ch.partner.profileImage}
                       alt={ch.partner.fullName}
-                      className="h-10 w-10 rounded-full object-cover border border-border"
+                      className="h-9 w-9 rounded-full object-cover border border-border"
                     />
-                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900"></span>
+                    <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900"></span>
                   </div>
 
-                  <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex-1 min-w-0 space-y-0.5">
                     <div className="flex justify-between items-center gap-2">
-                      <p className={`font-extrabold truncate transition-colors ${isSelected ? 'text-primary dark:text-blue-400' : 'text-slate-900 dark:text-white'}`}>
+                      <p className={`font-extrabold truncate ${isSelected ? 'text-primary dark:text-blue-400' : 'text-slate-800 dark:text-white'}`}>
                         {ch.partner.fullName}
                       </p>
-                      <span className="text-[9px] text-slate-400 shrink-0 font-bold">
+                      <span className="text-[8px] text-slate-400 shrink-0 font-bold">
                         {ch.lastMessageTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
 
-                    <span className={`inline-block text-[8px] font-black uppercase px-1.5 py-0.5 rounded leading-none border ${
-                      ch.partner.role === 'OWNER' 
-                        ? 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/30' 
-                        : 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30'
-                    }`}>
+                    <span className="inline-block text-[8px] font-black uppercase bg-blue-50 text-blue-700 dark:bg-slate-800 dark:text-blue-450 dark:border-blue-900/30 px-1 rounded leading-none">
                       {roleLabels[ch.partner.role] || ch.partner.role}
                     </span>
 
-                    <p className={`text-[11px] truncate font-semibold mt-1 transition-colors ${isSelected ? 'text-slate-700 dark:text-slate-300' : 'text-slate-500 dark:text-slate-400'}`}>
+                    <p className="text-[10px] truncate font-semibold mt-1 text-slate-500 dark:text-slate-450">
                       {ch.lastMessage}
                     </p>
                   </div>
@@ -431,108 +367,88 @@ function ChatContent() {
 
       </aside>
 
-      <section className={`flex-1 bg-slate-50 dark:bg-slate-950 flex flex-col transition-all overflow-hidden ${
+      {/* Main Chat Workspace */}
+      <section className={`flex-1 bg-slate-55/30 dark:bg-slate-900/10 flex flex-col transition-all overflow-hidden ${
         isMobileDetailActive ? 'flex' : 'hidden md:flex'
       }`}>
         
         {activePartner ? (
           <>
-            <div className="p-4 bg-white dark:bg-slate-900 border-b border-border/80 flex items-center justify-between shrink-0">
+            {/* Header info */}
+            <div className="p-3.5 bg-white dark:bg-slate-900 border-b border-border/80 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setIsMobileDetailActive(false)}
-                  className="md:hidden p-2 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 transition-colors text-slate-600 dark:text-slate-200"
+                  className="md:hidden p-1.5 rounded-lg bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 transition-colors text-slate-600 dark:text-slate-200"
                 >
-                  <ArrowLeft className="h-4 w-4" />
+                  <Search className="h-4 w-4 rotate-90" />
                 </button>
 
                 <img
                   src={activePartner.profileImage}
                   alt={activePartner.fullName}
-                  className="h-10 w-10 rounded-full object-cover border border-border"
+                  className="h-9 w-9 rounded-full object-cover border border-border"
                 />
                 
                 <div>
-                  <div className="flex items-center gap-1.5">
-                    <p className="font-extrabold text-slate-900 dark:text-white text-sm leading-none">
-                      {activePartner.fullName}
-                    </p>
-                    {activePartner.role === 'OWNER' && (
-                      <span title="KTP Terverifikasi" className="text-blue-500">
-                        <ShieldCheck className="h-4.5 w-4.5" />
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                      {roleLabels[activePartner.role]} • Aktif
+                  <p className="font-extrabold text-slate-900 dark:text-white text-xs leading-none">
+                    {activePartner.fullName}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-1 leading-none">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="text-[9px] text-slate-400 font-extrabold uppercase">
+                      {roleLabels[activePartner.role]}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div>
                 {activePartner.phone && (
                   <a
                     href={`https://wa.me/${activePartner.phone.replace(/[^0-9]/g, '')}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="p-2.5 rounded-xl border border-emerald-100 dark:border-emerald-950/20 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/25 transition-all shadow-sm"
-                    title="Beralih ke WhatsApp"
+                    className="p-2 rounded-xl border border-emerald-100 dark:border-emerald-950/20 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/25 transition-all shadow-sm flex items-center gap-1 font-bold text-[10px]"
+                    title="Hubungi via WhatsApp"
                   >
-                    <Phone className="h-4 w-4" />
+                    <Phone className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">WhatsApp</span>
                   </a>
                 )}
               </div>
             </div>
 
-            {activePartnerKosts.length > 0 && (
-              <div className="bg-blue-50/50 dark:bg-slate-900/60 border-b border-border/50 px-4 py-2.5 flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-300 shrink-0">
-                <div className="flex items-center gap-1.5 truncate">
-                  <Home className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span>Mengelola Kost: <strong className="text-slate-800 dark:text-white font-extrabold">{activePartnerKosts[0].name}</strong></span>
-                </div>
-                <Link
-                  href={`/kost/${activePartnerKosts[0].id}`}
-                  className="text-xs font-bold text-primary hover:underline shrink-0 pl-4"
-                >
-                  Detail Kost →
-                </Link>
-              </div>
-            )}
-
-            <div className="flex-1 p-6 overflow-y-auto space-y-4 scrollbar-none bg-[radial-gradient(rgba(14,165,233,0.03)_1px,transparent_1px)] dark:bg-[radial-gradient(rgba(14,165,233,0.01)_1px,transparent_1px)] [background-size:16px_16px]">
-              
+            {/* Messages Area */}
+            <div className="flex-1 p-5 overflow-y-auto space-y-3.5 scrollbar-thin bg-[radial-gradient(rgba(14,165,233,0.02)_1px,transparent_1px)] [background-size:16px_16px]">
               {activeMessages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3">
+                <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-2">
                   <div className="p-3 bg-white dark:bg-slate-900 rounded-3xl border border-border/80 shadow-sm text-primary">
-                    <MessageSquare className="h-8 w-8" />
+                    <MessageSquare className="h-6 w-6" />
                   </div>
-                  <h4 className="font-extrabold text-slate-800 dark:text-white">Kirim Pesan Pertama Anda</h4>
-                  <p className="text-[10px] text-slate-400 max-w-xs leading-normal">
-                    Diskusikan detail sewa kamar, peraturan tamu, biaya air listrik, atau koordinasi survey lapangan langsung di bawah ini.
+                  <h4 className="font-extrabold text-slate-800 dark:text-white">Percakapan Baru</h4>
+                  <p className="text-[10px] text-slate-400 max-w-xs leading-relaxed">
+                    Kirim pesan pertama Anda di bawah untuk mendiskusikan ketersediaan unit properti Anda secara langsung.
                   </p>
                 </div>
               ) : (
-                activeMessages.map((msg, idx) => {
+                activeMessages.map((msg) => {
                   const isMine = msg.senderId === currentUser.id;
                   
                   return (
                     <div 
                       key={msg.id} 
-                      className={`flex flex-col max-w-[75%] ${isMine ? 'ml-auto items-end' : 'mr-auto items-start'}`}
+                      className={`flex flex-col max-w-[80%] ${isMine ? 'ml-auto items-end' : 'mr-auto items-start'}`}
                     >
-                      <div className={`p-3.5 rounded-2xl leading-relaxed text-xs shadow-sm font-semibold ${
+                      <div className={`p-3 rounded-2xl leading-relaxed text-xs shadow-xs font-semibold ${
                         isMine 
-                          ? 'bg-gradient-to-tr from-primary to-secondary text-white rounded-tr-none' 
-                          : 'bg-white dark:bg-slate-900 border border-border/85 text-slate-800 dark:text-slate-200 rounded-tl-none'
+                          ? 'bg-primary text-white rounded-tr-none' 
+                          : 'bg-white dark:bg-slate-900 border border-border/70 text-slate-800 dark:text-slate-200 rounded-tl-none'
                       }`}>
                         <p className="whitespace-pre-line">{msg.message}</p>
                       </div>
                       
-                      <span className="text-[9px] text-slate-400 font-bold mt-1.5 px-1 uppercase tracking-wider flex items-center gap-1">
-                        <Clock className="h-3 w-3 text-slate-300" />
+                      <span className="text-[8px] text-slate-400 font-bold mt-1 px-1 uppercase tracking-wider">
                         {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
@@ -542,37 +458,38 @@ function ChatContent() {
               <div ref={chatEndRef} />
             </div>
 
-            <div className="p-4 bg-white dark:bg-slate-900 border-t border-border/80 shrink-0">
-              <form onSubmit={handleSendMessage} className="flex gap-3">
+            {/* Input Area */}
+            <div className="p-3.5 bg-white dark:bg-slate-900 border-t border-border/80 shrink-0">
+              <form onSubmit={handleSendMessage} className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Tulis pesan pertanyaan di sini..."
+                  placeholder="Ketik pesan balasan Anda..."
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  className="flex-1 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-border/80 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-800 dark:text-white font-semibold shadow-inner"
+                  className="flex-1 bg-slate-50 dark:bg-slate-850 rounded-xl border border-border/80 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-800 dark:text-white placeholder-slate-400 font-semibold shadow-inner"
                   required
                   autoComplete="off"
                 />
                 
                 <button
                   type="submit"
-                  className="p-3 bg-primary hover:bg-blue-600 text-white rounded-2xl shadow transition-transform active:scale-95 flex items-center justify-center shrink-0 cursor-pointer"
-                  title="Kirim Pesan"
+                  className="p-2.5 bg-primary hover:bg-blue-600 text-white rounded-xl shadow-md transition-transform active:scale-95 flex items-center justify-center shrink-0 cursor-pointer border-0"
+                  title="Kirim"
                 >
-                  <Send className="h-5 w-5" />
+                  <Send className="h-4 w-4" />
                 </button>
               </form>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-4">
-            <div className="p-4 bg-white dark:bg-slate-900 rounded-full border border-border shadow-sm text-primary animate-pulse">
-              <MessageSquare className="h-10 w-10" />
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-3">
+            <div className="p-3 bg-white dark:bg-slate-900 rounded-full border border-border/85 shadow-sm text-primary">
+              <MessageSquare className="h-8 w-8" />
             </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-extrabold text-slate-800 dark:text-white">Pilih Percakapan Mitra</h3>
-              <p className="text-[11px] text-slate-400 max-w-xs leading-normal">
-                Pilih kontak di sebelah kiri untuk melihat pesan masuk, atau buka salah satu listing kost untuk berkonsultasi langsung.
+            <div>
+              <h3 className="text-xs font-extrabold text-slate-800 dark:text-white">Pilih Percakapan</h3>
+              <p className="text-[10px] text-slate-400 max-w-xs leading-relaxed mt-1">
+                Silakan pilih salah satu percakapan di bilah kiri untuk membalas chat calon penyewa kost Anda.
               </p>
             </div>
           </div>
@@ -581,18 +498,5 @@ function ChatContent() {
       </section>
 
     </div>
-  );
-}
-
-export default function ChatPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex-1 flex flex-col items-center justify-center min-h-[80vh] space-y-4 dark:bg-slate-950">
-        <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
-        <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Memuat enkripsi pesan...</p>
-      </div>
-    }>
-      <ChatContent />
-    </Suspense>
   );
 }

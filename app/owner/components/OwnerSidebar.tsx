@@ -26,7 +26,6 @@ interface OwnerSidebarProps {
   setActiveTab: (tab: any) => void;
   currentUser: User;
   logout: () => void;
-  inquiries: Inquiry[];
   invoices: Invoice[];
   isDarkMode: boolean;
   toggleTheme: () => void;
@@ -40,7 +39,6 @@ export default function OwnerSidebar({
   setActiveTab,
   currentUser,
   logout,
-  inquiries,
   invoices,
   isDarkMode,
   toggleTheme,
@@ -48,10 +46,6 @@ export default function OwnerSidebar({
   setIsMobileOpen,
   handleOpenEditProfile
 }: OwnerSidebarProps) {
-
-  const pendingInquiriesCount = inquiries.filter(
-    (i) => i.status === 'pending'
-  ).length;
 
   const unpaidInvoicesCount = invoices.filter(
     (inv) => inv.status === 'unpaid' || inv.status === 'overdue'
@@ -68,12 +62,7 @@ export default function OwnerSidebar({
       icon: <Wallet className="h-4.5 w-4.5" />,
       badge: unpaidInvoicesCount 
     },
-    { 
-      id: 'inquiries', 
-      name: 'Inquiry & Lead', 
-      icon: <Mail className="h-4.5 w-4.5" />,
-      badge: pendingInquiriesCount 
-    },
+    { id: 'chat', name: 'Tanya Jawab Chat', icon: <MessageSquare className="h-4.5 w-4.5" /> },
     { id: 'reviews', name: 'Ulasan & Reputasi', icon: <MessageSquare className="h-4.5 w-4.5" /> },
     { id: 'verifications', name: 'Verifikasi Kost', icon: <ShieldCheck className="h-4.5 w-4.5" /> },
     { id: 'reports', name: 'Laporan', icon: <FileText className="h-4.5 w-4.5" /> },
@@ -167,17 +156,6 @@ export default function OwnerSidebar({
             </button>
           );
         })}
-
-        {/* Dedicated Chat Hub Link */}
-        <Link
-          href="/chat"
-          className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <MessageSquare className="h-4.5 w-4.5 text-primary" />
-            <span className="brand-gradient-text">Buka Chat Hub</span>
-          </div>
-        </Link>
       </nav>
 
       {/* Bottom Footer Actions */}

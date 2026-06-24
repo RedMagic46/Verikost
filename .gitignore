@@ -42,3 +42,4 @@ next-env.d.ts
 
 # Supabase schema
 supabase_schema.sql
+migration.sql

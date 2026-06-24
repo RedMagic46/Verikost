@@ -21,6 +21,8 @@ export interface User {
   referralCode?: string;
   referredBy?: string;
   subscriptionExpiresAt?: string | null;
+  parentCode?: string;
+  childId?: string;
 }
 
 export interface OwnerVerification {
@@ -61,7 +63,7 @@ export interface Kost {
   distanceToUMM: number;
   latitude?: number;
   longitude?: number;
-  rating: number;
+  rating: number | null;
   ownerId: string;
   securityInfo: string;
   ownerName: string;

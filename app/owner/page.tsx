@@ -22,11 +22,11 @@ import PropertiesTab from './components/PropertiesTab';
 import RoomsTab from './components/RoomsTab';
 import TenantsTab from './components/TenantsTab';
 import PaymentsTab from './components/PaymentsTab';
-import InquiriesTab from './components/InquiriesTab';
 import ReviewsTab from './components/ReviewsTab';
 import ReportsTab from './components/ReportsTab';
 import SettingsTab from './components/SettingsTab';
 import VerificationsTab from './components/VerificationsTab';
+import ChatTab from './components/ChatTab';
 
 export default function OwnerDashboardPage() {
   return (
@@ -69,7 +69,7 @@ function OwnerDashboardContent() {
     submitKostVerification
   } = useApp();
 
-  const [activeTab, setActiveTabState] = useState<'overview' | 'properties' | 'rooms' | 'tenants' | 'payments' | 'inquiries' | 'reviews' | 'verifications' | 'reports' | 'settings'>('overview');
+  const [activeTab, setActiveTabState] = useState<'overview' | 'properties' | 'rooms' | 'tenants' | 'payments' | 'chat' | 'reviews' | 'verifications' | 'reports' | 'settings'>('overview');
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -80,7 +80,7 @@ function OwnerDashboardContent() {
     }
   }, [currentUser?.id]);
 
-  const setActiveTab = (tab: 'overview' | 'properties' | 'rooms' | 'tenants' | 'payments' | 'inquiries' | 'reviews' | 'verifications' | 'reports' | 'settings') => {
+  const setActiveTab = (tab: 'overview' | 'properties' | 'rooms' | 'tenants' | 'payments' | 'chat' | 'reviews' | 'verifications' | 'reports' | 'settings') => {
     setActiveTabState(tab);
     if (currentUser?.id) {
       localStorage.setItem(`vk_owner_tab_${currentUser.id}`, tab);
@@ -176,7 +176,6 @@ function OwnerDashboardContent() {
         setActiveTab={setActiveTab}
         currentUser={currentUser}
         logout={logout}
-        inquiries={myInquiries}
         invoices={myInvoices}
         isDarkMode={isDarkMode}
         toggleTheme={toggleTheme}
@@ -383,13 +382,8 @@ function OwnerDashboardContent() {
                 />
               )}
 
-              {activeTab === 'inquiries' && (
-                <InquiriesTab 
-                  myKosts={myKosts}
-                  myInquiries={myInquiries}
-                  updateInquiryStatus={handleUpdateInquiryStatus}
-                  showToast={showToast}
-                />
+              {activeTab === 'chat' && (
+                <ChatTab />
               )}
 
               {activeTab === 'reviews' && (
