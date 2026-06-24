@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/app/context/AppContext';
 import { z } from 'zod';
 import { Mail, Lock, User, Phone, GraduationCap, Briefcase, Landmark, ShieldAlert, Check, ChevronRight, ChevronLeft, MapPin } from 'lucide-react';
 import Link from 'next/link';
+import { supabase } from '@/app/lib/supabase';
 
 const registerSchema = z.object({
   fullName: z.string().min(3, { message: 'Nama lengkap minimal 3 karakter.' }),
@@ -54,12 +55,53 @@ export default function RegisterForm() {
   
   const [kostName, setKostName] = useState('');
   const [kostAddress, setKostAddress] = useState('');
-
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const [referralCode, setReferralCode] = useState('');
+  const [referrerName, setReferrerName] = useState<string | null>(null);
+  const [referralError, setReferralError] = useState<string | null>(null);
+  const [isValidatingReferral, setIsValidatingReferral] = useState(false);
+
+  useEffect(() => {
+    if (!referralCode.trim()) {
+      setReferrerName(null);
+      setReferralError(null);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsValidatingReferral(true);
+      setReferralError(null);
+      setReferrerName(null);
+      
+      try {
+        const formattedCode = referralCode.toLowerCase().replace(/\s+/g, '').trim();
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('fullName, role')
+          .eq('referralCode', formattedCode)
+          .single();
+        
+        if (error || !data) {
+          setReferralError('Kode referral tidak valid atau tidak ditemukan');
+        } else if (data.role !== 'STUDENT') {
+          setReferralError('Hanya kode referral Mahasiswa yang dapat digunakan');
+        } else {
+          setReferrerName(data.fullName);
+        }
+      } catch (err) {
+        setReferralError('Gagal memvalidasi kode referral');
+      } finally {
+        setIsValidatingReferral(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [referralCode]);
 
   const handleNextStep = () => {
     setStep(2);
@@ -154,7 +196,8 @@ export default function RegisterForm() {
         major: role === 'STUDENT' ? normalizedMajor : undefined,
         occupation: role === 'PARENT' ? normalizedOccupation : undefined,
         kostName: role === 'OWNER' ? normalizedKostName : undefined,
-        kostAddress: role === 'OWNER' ? normalizedKostAddress : undefined
+        kostAddress: role === 'OWNER' ? normalizedKostAddress : undefined,
+        referredBy: role === 'STUDENT' ? (referralCode.trim() || undefined) : undefined
       };
 
       const res = await register(payload);
@@ -433,6 +476,36 @@ export default function RegisterForm() {
                 </div>
 
               </div>
+
+              {/* Optional Referral Code Field */}
+              <div className="space-y-1.5 pt-4 border-t border-border/60">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Kode Referral (Opsional)</label>
+                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-xl border px-3 py-2.5 text-xs border-border focus-within:border-primary transition-colors">
+                  <GraduationCap className="h-4 w-4 text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Masukkan kode referral teman Anda (jika ada)"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value)}
+                    disabled={isLoading || isSuccess}
+                    className="w-full bg-transparent outline-none text-slate-800 dark:text-white uppercase placeholder-slate-400 font-extrabold tracking-wider"
+                  />
+                  {isValidatingReferral && (
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent shrink-0"></div>
+                  )}
+                </div>
+                {referrerName && (
+                  <p className="text-[10px] text-emerald-500 font-bold pl-1 flex items-center gap-1 mt-1">
+                    <Check className="h-3.5 w-3.5 text-emerald-500" /> Pengundang ditemukan: {referrerName}
+                  </p>
+                )}
+                {referralError && (
+                  <p className="text-[10px] text-amber-550 dark:text-amber-450 font-bold pl-1 flex items-center gap-1 mt-1">
+                    <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-amber-500" /> {referralError}
+                  </p>
+                )}
+              </div>
+
             </div>
           )}
 

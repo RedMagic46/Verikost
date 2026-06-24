@@ -37,11 +37,27 @@ export default function ProfilePage() {
 }
 
 function ProfileContent() {
-  const { currentUser, updateProfile } = useApp();
+  const { currentUser, updateProfile, referrals, platformSettings, updateReferralCode, claimReferralReward, showToast } = useApp();
   if (!currentUser) return null;
+
+  const getVoucherSuffix = (rewardText: string) => {
+    if (!rewardText) return 'FREE';
+    const cleanText = rewardText.replace(/\./g, '');
+    const match = cleanText.match(/\d+/);
+    if (match) {
+      const val = parseInt(match[0], 10);
+      if (val >= 1000) {
+        return `${Math.round(val / 1000)}K`;
+      }
+      return `${val}`;
+    }
+    return rewardText.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase();
+  };
 
   const [fullName, setFullName] = useState(currentUser.fullName);
   const [phone, setPhone] = useState(currentUser.phone);
+  const [customReferralCode, setCustomReferralCode] = useState(currentUser.referralCode || '');
+  const [isEditingRef, setIsEditingRef] = useState(false);
   
   const [university, setUniversity] = useState(currentUser.university || '');
   const [faculty, setFaculty] = useState(currentUser.faculty || '');
@@ -417,6 +433,222 @@ function ProfileContent() {
               </form>
 
             </div>
+
+            {currentUser.role === 'STUDENT' && (
+              <div className="bg-white dark:bg-slate-900 border border-border rounded-3xl p-6 sm:p-8 shadow-sm space-y-6 animate-in fade-in duration-200">
+                <div className="border-b border-border pb-3">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Program Rujukan (Referral)</h3>
+                </div>
+                
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Bagikan kode referral unik Anda ke teman mahasiswa rantau lainnya! Dapatkan hadiah menarik ketika mereka mendaftar dan melakukan booking kost pertama.
+                </p>
+
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/40 border border-border rounded-2xl space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Kode Referral Anda</span>
+                      {isEditingRef ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={customReferralCode}
+                            onChange={(e) => setCustomReferralCode(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                            className="bg-white dark:bg-slate-900 border border-border rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 dark:text-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const success = await updateReferralCode(customReferralCode);
+                              if (success) setIsEditingRef(false);
+                            }}
+                            className="bg-primary hover:bg-blue-600 text-white font-bold text-[10px] px-3 py-1.5 rounded-lg shadow-xs cursor-pointer border-0"
+                          >
+                            Simpan
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomReferralCode(currentUser.referralCode || '');
+                              setIsEditingRef(false);
+                            }}
+                            className="bg-slate-200 hover:bg-slate-350 text-slate-700 font-bold text-[10px] px-3 py-1.5 rounded-lg cursor-pointer border-0"
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-black text-slate-850 dark:text-white tracking-wide">{currentUser.referralCode || '-'}</span>
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingRef(true)}
+                            className="text-[9px] text-primary font-bold hover:underline"
+                          >
+                            (Ubah Kode)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (currentUser.referralCode) {
+                          navigator.clipboard.writeText(currentUser.referralCode);
+                          showToast('Kode referral berhasil disalin ke clipboard!', 'success');
+                        }
+                      }}
+                      className="inline-flex items-center justify-center gap-1.5 border border-border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 text-[10px] font-bold py-2 px-4 rounded-xl shadow-xs transition-colors cursor-pointer"
+                    >
+                      Salin Kode
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-3 border-t border-border/50">
+                    <div className="space-y-0.5">
+                      <span className="text-[9px] text-slate-400 font-bold uppercase block tracking-wider">Reward Pendaftaran</span>
+                      <p className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200">{platformSettings.smallReferralReward}</p>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-[9px] text-slate-400 font-bold uppercase block tracking-wider">Reward Transaksi DP</span>
+                      <p className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200">{platformSettings.transactionReferralReward}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-extrabold uppercase text-slate-705 dark:text-slate-350 tracking-wider">Teman yang Anda Undang</h4>
+                  
+                  {(() => {
+                    const myInvites = referrals?.filter(r => r.referrerId === currentUser.id) || [];
+                    if (myInvites.length === 0) {
+                      return (
+                        <div className="text-center p-6 bg-slate-50/50 dark:bg-slate-800/10 rounded-2xl border-2 border-dashed border-border text-[11px] text-muted-foreground font-semibold">
+                          Belum ada teman yang bergabung menggunakan kode Anda.
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="border border-border rounded-2xl overflow-hidden shadow-xs">
+                        <table className="w-full text-left border-collapse text-[11px]">
+                          <thead>
+                            <tr className="bg-slate-50 dark:bg-slate-800 border-b border-border text-slate-700 dark:text-slate-300 font-bold">
+                              <th className="p-3">Nama Teman</th>
+                              <th className="p-3">Status Rujukan</th>
+                              <th className="p-3 text-right">Klaim Reward</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border text-slate-650 dark:text-slate-400">
+                            {myInvites.map((invite) => (
+                              <tr key={invite.id} className="hover:bg-slate-50/30">
+                                <td className="p-3">
+                                  <span className="font-bold text-slate-800 dark:text-white block">{invite.referredName}</span>
+                                  <span className="text-[9px] text-slate-400">{invite.referredEmail}</span>
+                                </td>
+                                <td className="p-3">
+                                  {invite.transactionRewardStatus === 'claimed' ? (
+                                    <span className="text-emerald-600 font-bold">Selesai (DP Lunas)</span>
+                                  ) : invite.transactionRewardStatus === 'earned' ? (
+                                    <span className="text-amber-600 font-extrabold animate-pulse">Siap Diklaim (DP Lunas)</span>
+                                  ) : (
+                                    <span className="text-slate-450 font-semibold">Terdaftar (Belum Booking)</span>
+                                  )}
+                                </td>
+                                <td className="p-3 text-right space-y-1">
+                                  {/* Small Reward Claim Button */}
+                                  {invite.smallRewardStatus === 'pending' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => claimReferralReward(invite.id, 'small')}
+                                      className="bg-primary hover:bg-blue-600 text-white font-bold text-[9px] py-1 px-2.5 rounded-lg cursor-pointer border-0 shadow-xs mr-1"
+                                    >
+                                      Klaim Sign-Up
+                                    </button>
+                                  )}
+                                  
+                                  {/* Transaction Reward Claim Button */}
+                                  {invite.transactionRewardStatus === 'earned' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => claimReferralReward(invite.id, 'transaction')}
+                                      className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-[9px] py-1 px-2.5 rounded-lg cursor-pointer border-0 shadow-xs"
+                                    >
+                                      Klaim Booking
+                                    </button>
+                                  )}
+
+                                  <div className="flex flex-col items-end gap-1.5 pt-0.5">
+                                    {invite.smallRewardStatus === 'claimed' && (() => {
+                                      const suffix = getVoucherSuffix(platformSettings.smallReferralReward);
+                                      const code = `VK-REF-${invite.id.substring(4, 8).toUpperCase()}-${suffix}`;
+                                      return (
+                                        <div className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 px-2 py-0.5 rounded-lg text-[9px] text-emerald-600 dark:text-emerald-450 font-bold animate-in fade-in duration-200">
+                                          <span>Voucher Reg: </span>
+                                          <code className="bg-emerald-100 dark:bg-emerald-900/40 px-1 rounded select-all font-mono font-black text-slate-800 dark:text-slate-100 uppercase">
+                                            {code}
+                                          </code>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              navigator.clipboard.writeText(code);
+                                              showToast('Kode voucher sign-up berhasil disalin!', 'success');
+                                            }}
+                                            className="p-0.5 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded text-emerald-500 hover:text-emerald-700 transition-colors cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0"
+                                            title="Salin Voucher"
+                                          >
+                                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                            </svg>
+                                          </button>
+                                        </div>
+                                      );
+                                    })()}
+
+                                    {invite.transactionRewardStatus === 'claimed' && (() => {
+                                      const suffix = getVoucherSuffix(platformSettings.transactionReferralReward);
+                                      const code = `VK-REF-${invite.id.substring(4, 8).toUpperCase()}-${suffix}`;
+                                      return (
+                                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-955/20 border border-amber-100 dark:border-amber-900/30 px-2 py-0.5 rounded-lg text-[9px] text-amber-600 dark:text-amber-455 font-bold animate-in fade-in duration-200">
+                                          <span>Voucher Book: </span>
+                                          <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded select-all font-mono font-black text-slate-800 dark:text-slate-100 uppercase">
+                                            {code}
+                                          </code>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              navigator.clipboard.writeText(code);
+                                              showToast('Kode voucher booking berhasil disalin!', 'success');
+                                            }}
+                                            className="p-0.5 hover:bg-amber-100 dark:hover:bg-amber-900/50 rounded text-amber-500 hover:text-amber-700 transition-colors cursor-pointer border-0 bg-transparent flex items-center justify-center shrink-0"
+                                            title="Salin Voucher"
+                                          >
+                                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                            </svg>
+                                          </button>
+                                        </div>
+                                      );
+                                    })()}
+
+                                    {invite.smallRewardStatus === 'claimed' && invite.transactionRewardStatus !== 'earned' && invite.transactionRewardStatus !== 'claimed' && (
+                                      <span className="text-[9px] text-slate-455 font-bold italic">Sign-up Diklaim ✓</span>
+                                    )}
+                                    {invite.transactionRewardStatus === 'claimed' && (
+                                      <span className="text-[9px] text-emerald-600 font-bold italic">Semua Diklaim ✓</span>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
 
             <div className="bg-white dark:bg-slate-900 border border-border rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
               

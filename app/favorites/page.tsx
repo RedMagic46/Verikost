@@ -1,38 +1,29 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '@/app/context/AppContext';
 import KostCard from '@/components/KostCard';
-import { Heart, GitCompare, Trash2, ArrowRight } from 'lucide-react';
+import { Heart, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function FavoritesPage() {
-  const { favorites, kosts, toggleFavorite, compareList, toggleCompare } = useApp();
+  const { favorites, kosts, toggleFavorite, currentUser } = useApp();
 
   
-  const favoritedKosts = kosts.filter((k) => favorites.includes(k.id));
+  const favoritedKosts = kosts.filter((k) => {
+    const isAuthorized = currentUser && (currentUser.role === 'ADMIN' || currentUser.id === k.ownerId);
+    return favorites.includes(k.id) && !k.isDeleted && (k.verifiedStatus !== 'none' || isAuthorized);
+  });
 
   
-  const handleCompareAll = () => {
-    if (favoritedKosts.length === 0) return;
-    
-    
-    const toCompare = favoritedKosts.slice(0, 3);
-    
-    
-    toCompare.forEach((kost) => {
-      if (!compareList.includes(kost.id)) {
-        toggleCompare(kost.id);
-      }
-    });
-  };
+
+
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const handleClearAll = () => {
-    if (confirm('Apakah Anda yakin ingin menghapus semua kost dari daftar favorit Anda?')) {
-      favorites.forEach((favId) => {
-        toggleFavorite(favId);
-      });
-    }
+    if (favoritedKosts.length === 0) return;
+    setIsConfirmOpen(true);
   };
 
   if (favoritedKosts.length === 0) {
@@ -73,13 +64,6 @@ export default function FavoritesPage() {
 
           <div className="flex gap-3">
             <button
-              onClick={handleCompareAll}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-3 px-5 shadow transition-colors"
-            >
-              <GitCompare className="h-4 w-4" />
-              Bandingkan Pilihan
-            </button>
-            <button
               onClick={handleClearAll}
               className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-xs font-semibold py-3 px-5 shadow-sm hover:bg-rose-50 hover:text-rose-600 transition-colors"
             >
@@ -97,6 +81,21 @@ export default function FavoritesPage() {
         </div>
 
       </div>
+
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={() => {
+          favorites.forEach((favId) => {
+            toggleFavorite(favId);
+          });
+        }}
+        title="Hapus Semua Favorit?"
+        description="Apakah Anda yakin ingin menghapus semua kost dari daftar favorit Anda? Tindakan ini tidak dapat dibatalkan."
+        confirmText="Ya, Hapus Semua"
+        cancelText="Batal"
+        variant="danger"
+      />
     </div>
   );
 }
