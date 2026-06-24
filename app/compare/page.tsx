@@ -170,10 +170,14 @@ export default function CompareKosts() {
                   <td className="p-4 font-bold text-slate-800 dark:text-slate-200 bg-slate-50/30">Rating Surveyor</td>
                   {comparedKosts.map((kost) => (
                     <td key={kost.id} className="p-4 border-l border-border font-semibold text-slate-800 dark:text-white">
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
-                        <span>{kost.rating.toFixed(1)} / 5.0</span>
-                      </div>
+                      {kost.rating !== null && kost.rating !== undefined ? (
+                        <div className="flex items-center gap-1">
+                          <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+                          <span>{kost.rating.toFixed(1)} / 5.0</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Belum ada ulasan</span>
+                      )}
                     </td>
                   ))}
                   {comparedKosts.length < 3 && <td className="p-4 border-l border-border bg-slate-50/20"></td>}

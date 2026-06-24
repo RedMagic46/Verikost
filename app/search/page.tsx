@@ -224,7 +224,11 @@ function SearchResultsContent() {
     const sortFn = (a: Kost, b: Kost) => {
       if (sortBy === 'price-asc') return a.price - b.price;
       if (sortBy === 'price-desc') return b.price - a.price;
-      if (sortBy === 'rating-desc') return b.rating - a.rating;
+      if (sortBy === 'rating-desc') {
+        const rA = a.rating ?? 0;
+        const rB = b.rating ?? 0;
+        return rB - rA;
+      }
       if (sortBy === 'distance-asc') {
         const distA =
           selectedCampus === 'ub'

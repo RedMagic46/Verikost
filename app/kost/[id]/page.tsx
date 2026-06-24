@@ -263,11 +263,15 @@ export default function KostDetail() {
                     <AvailabilityIndicator availability={kost.roomAvailability} />
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-amber-500 font-extrabold text-sm">
-                    <Star className="h-4.5 w-4.5 fill-amber-500 text-amber-500" />
-                    <span>{kost.rating.toFixed(1)}</span>
-                    <span className="text-xs text-muted-foreground font-medium">({kostReviews.length} ulasan)</span>
-                  </div>
+                  {kost.rating !== null && kost.rating !== undefined ? (
+                    <div className="flex items-center gap-1.5 text-amber-500 font-extrabold text-sm">
+                      <Star className="h-4.5 w-4.5 fill-amber-500 text-amber-500" />
+                      <span>{kost.rating.toFixed(1)}</span>
+                      <span className="text-xs text-muted-foreground font-medium">({kostReviews.length} ulasan)</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground font-semibold">Belum ada ulasan</span>
+                  )}
                 </div>
 
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white leading-tight">
@@ -533,20 +537,26 @@ export default function KostDetail() {
                 <p className="text-xs text-muted-foreground mt-0.5">Testimoni nyata dari penyewa kamar yang pernah tinggal di kost ini.</p>
               </div>
 
-              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 py-1.5 px-3 rounded-xl border border-border/80">
-                <span className="text-2xl font-black text-amber-500">{kost.rating.toFixed(1)}</span>
-                <div className="text-left">
-                  <div className="flex gap-0.5">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-3 w-3 ${i < Math.round(kost.rating) ? 'fill-amber-500 text-amber-500' : 'text-slate-200'}`}
-                      />
-                    ))}
+              {kost.rating !== null && kost.rating !== undefined ? (
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 py-1.5 px-3 rounded-xl border border-border/80">
+                  <span className="text-2xl font-black text-amber-500">{kost.rating.toFixed(1)}</span>
+                  <div className="text-left">
+                    <div className="flex gap-0.5">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`h-3 w-3 ${i < Math.round(kost.rating || 0) ? 'fill-amber-500 text-amber-500' : 'text-slate-200'}`}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-[9px] text-muted-foreground mt-0.5 font-bold uppercase">{kostReviews.length} Ulasan Terverifikasi</p>
                   </div>
-                  <p className="text-[9px] text-muted-foreground mt-0.5 font-bold uppercase">{kostReviews.length} Ulasan Terverifikasi</p>
                 </div>
-              </div>
+              ) : (
+                <div className="text-xs text-muted-foreground font-semibold bg-slate-50 dark:bg-slate-800 py-2 px-3 rounded-xl border border-border/80">
+                  Belum ada ulasan
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

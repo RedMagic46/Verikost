@@ -99,6 +99,12 @@ interface AppContextType {
   adminAdjustOwnerSubscription: (ownerId: string, expiresAt: string | null) => Promise<void>;
   adminAdjustKostPromotion: (kostId: string, expiresAt: string | null) => Promise<void>;
 
+  // Parent-Student Linking & Payment
+  generateParentCode: () => Promise<void>;
+  linkChild: (code: string) => Promise<boolean>;
+  unlinkChild: () => Promise<void>;
+  payInvoice: (invoiceId: string, paymentMethod: string) => Promise<void>;
+
   toast: { message: string; type: 'success' | 'error' | 'info' } | null;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
@@ -741,7 +747,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const updatedReviews = reviews.filter(r => r.id !== reviewId);
           const approvedKostReviews = updatedReviews.filter(r => r.kostId === targetReview.kostId && r.status === 'approved');
           const totalRating = approvedKostReviews.reduce((sum, r) => sum + r.rating, 0);
-          const newAverage = approvedKostReviews.length > 0 ? Number((totalRating / approvedKostReviews.length).toFixed(1)) : 5.0;
+          const newAverage = approvedKostReviews.length > 0 ? Number((totalRating / approvedKostReviews.length).toFixed(1)) : null;
 
           await supabase
             .from('kosts')
@@ -769,7 +775,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const updatedReviews = reviews.map(r => r.id === reviewId ? { ...r, status: 'approved' as const } : r);
           const approvedKostReviews = updatedReviews.filter(r => r.kostId === targetReview.kostId && r.status === 'approved');
           const totalRating = approvedKostReviews.reduce((sum, r) => sum + r.rating, 0);
-          const newAverage = approvedKostReviews.length > 0 ? Number((totalRating / approvedKostReviews.length).toFixed(1)) : 5.0;
+          const newAverage = approvedKostReviews.length > 0 ? Number((totalRating / approvedKostReviews.length).toFixed(1)) : null;
 
           await supabase
             .from('kosts')
@@ -1208,7 +1214,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!currentUser) return;
     const newKost = {
       ...newKostData,
-      rating: 5.0,
+      rating: null,
       views: 0,
       ownerId: currentUser.id,
       ownerName: currentUser.fullName,
@@ -1735,6 +1741,105 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // ==================== PARENT-STUDENT LINKING & PAYMENT ====================
+
+  const generateParentCode = async () => {
+    if (!currentUser) return;
+    const code = 'VK-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const { error } = await supabase
+      .from('profiles')
+      .update({ parentCode: code })
+      .eq('id', currentUser.id);
+
+    if (error) {
+      console.error('Error generating parent code:', error);
+      showToast('Gagal membuat Kode Hubung: ' + error.message, 'error');
+      return;
+    }
+
+    setCurrentUser(prev => prev ? { ...prev, parentCode: code } : null);
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, parentCode: code } : u));
+    showToast('Kode Hubung Orang Tua berhasil dibuat: ' + code, 'success');
+  };
+
+  const linkChild = async (code: string): Promise<boolean> => {
+    if (!currentUser) return false;
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) {
+      showToast('Kode hubung tidak boleh kosong.', 'error');
+      return false;
+    }
+
+    const { data: studentProfile, error: fetchError } = await supabase
+      .from('profiles')
+      .select('id, fullName')
+      .eq('parentCode', trimmed)
+      .single();
+
+    if (fetchError || !studentProfile) {
+      showToast('Kode Hubung tidak ditemukan. Pastikan kode yang dimasukkan benar.', 'error');
+      return false;
+    }
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ childId: studentProfile.id })
+      .eq('id', currentUser.id);
+
+    if (updateError) {
+      console.error('Error linking child:', updateError);
+      showToast('Gagal menghubungkan akun: ' + updateError.message, 'error');
+      return false;
+    }
+
+    setCurrentUser(prev => prev ? { ...prev, childId: studentProfile.id } : null);
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, childId: studentProfile.id } : u));
+    showToast(`Berhasil terhubung dengan akun ${studentProfile.fullName}!`, 'success');
+    return true;
+  };
+
+  const unlinkChild = async () => {
+    if (!currentUser) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ childId: null })
+      .eq('id', currentUser.id);
+
+    if (error) {
+      showToast('Gagal memutus hubungan akun: ' + error.message, 'error');
+      return;
+    }
+
+    setCurrentUser(prev => prev ? { ...prev, childId: undefined } : null);
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, childId: undefined } : u));
+    showToast('Hubungan akun anak berhasil diputus.', 'success');
+  };
+
+  const payInvoice = async (invoiceId: string, paymentMethod: string) => {
+    const paidDate = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('invoices')
+      .update({
+        status: 'paid' as const,
+        paidDate,
+        paymentMethod
+      })
+      .eq('id', invoiceId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error paying invoice:', error);
+      showToast('Gagal memproses pembayaran: ' + error.message, 'error');
+      return;
+    }
+
+    if (data) {
+      setInvoices(prev => prev.map(inv => inv.id === invoiceId ? data : inv));
+      showToast('Pembayaran berhasil! Tagihan telah dilunasi.', 'success');
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -1804,6 +1909,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         adminAdjustReferral,
         adminAdjustOwnerSubscription,
         adminAdjustKostPromotion,
+        generateParentCode,
+        linkChild,
+        unlinkChild,
+        payInvoice,
         toast,
         showToast
       }}
