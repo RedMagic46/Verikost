@@ -431,7 +431,7 @@ export default function KostDetail() {
                         {!bookingPayment && (
                           <div className="bg-emerald-50/40 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-900/30 p-3 rounded-2xl space-y-3">
                             <div className="space-y-1">
-                              <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-450">Pengajuan Disetujui!</p>
+                              <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">Pengajuan Disetujui!</p>
                               <p className="text-[10px] text-muted-foreground leading-relaxed">
                                 {kost.bookingDpAmount && kost.bookingDpAmount > 0 
                                   ? `Amankan kamar Anda dengan membayar Down Payment sebesar ${formatPrice(kost.bookingDpAmount)}.`
@@ -450,15 +450,13 @@ export default function KostDetail() {
                         )}
 
                         {bookingPayment && bookingPayment.status === 'pending' && (() => {
-                          const displayAmount = platformSettings.commissionChargedTo === 'student'
-                            ? bookingPayment.dpAmount + bookingPayment.commissionAmount
-                            : bookingPayment.dpAmount;
+                          const displayAmount = bookingPayment.dpAmount;
                           return (
                             <div className="bg-amber-50/40 dark:bg-amber-950/10 border border-amber-100 dark:border-amber-900/30 p-3 rounded-2xl space-y-3">
                               <div className="space-y-1">
                                 <p className="text-[10px] font-bold text-amber-700 dark:text-amber-455">Tagihan DP Aktif</p>
                                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                                  Selesaikan pembayaran sebesar **{formatPrice(displayAmount)}** {platformSettings.commissionChargedTo === 'student' && `(termasuk biaya layanan ${formatPrice(bookingPayment.commissionAmount)})`} sebelum kedaluwarsa.
+                                  Selesaikan pembayaran sebesar **{formatPrice(displayAmount)}** sebelum kedaluwarsa.
                                 </p>
                                 <p className="text-[9px] text-slate-400 font-bold block pt-1">
                                   Batas Waktu: 24 Jam sejak pengajuan.
@@ -481,7 +479,7 @@ export default function KostDetail() {
                               <span>Booking Kamar Sukses!</span>
                             </p>
                             <p className="text-[10px] text-muted-foreground leading-relaxed">
-                              DP sebesar **{formatPrice(bookingPayment.dpAmount)}** {platformSettings.commissionChargedTo === 'student' && `(ditambah biaya layanan ${formatPrice(bookingPayment.commissionAmount)})`} telah lunas dibayarkan via {bookingPayment.paymentMethod} pada {new Date(bookingPayment.paidAt || '').toLocaleDateString('id-ID')}.
+                              DP sebesar **{formatPrice(bookingPayment.dpAmount)}** telah lunas dibayarkan via {bookingPayment.paymentMethod} pada {new Date(bookingPayment.paidAt || '').toLocaleDateString('id-ID')}.
                             </p>
                           </div>
                         )}
@@ -638,10 +636,8 @@ export default function KostDetail() {
         <CheckoutModal
           isOpen={isCheckoutOpen}
           onClose={() => setIsCheckoutOpen(false)}
-          amount={platformSettings.commissionChargedTo === 'student' ? bookingPayment.dpAmount + bookingPayment.commissionAmount : bookingPayment.dpAmount}
+          amount={bookingPayment.dpAmount}
           dpAmount={bookingPayment.dpAmount}
-          commissionAmount={bookingPayment.commissionAmount}
-          commissionChargedTo={platformSettings.commissionChargedTo}
           paymentId={bookingPayment.id}
           executeMockPayment={executeMockPayment}
         />

@@ -183,8 +183,8 @@ export default function SettingsTab({
         
         {/* Avatar Upload Panel */}
         <div className="space-y-3">
-          <span className="text-slate-700 dark:text-slate-350 font-bold block">Foto Profil Anda</span>
-          <div className="flex flex-col sm:flex-row gap-4 items-center bg-slate-50/50 dark:bg-slate-850/20 p-4 rounded-2xl border border-border/80">
+          <span className="text-slate-700 dark:text-slate-400 font-bold block">Foto Profil Anda</span>
+          <div className="flex flex-col sm:flex-row gap-4 items-center bg-slate-50/50 dark:bg-slate-800/20 p-4 rounded-2xl border border-border/80">
             <div className="h-16 w-16 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 border border-border/85 relative flex items-center justify-center">
               {profileImage ? (
                 <img src={profileImage} alt="Profile Avatar" className="w-full h-full object-cover" />
@@ -244,7 +244,7 @@ export default function SettingsTab({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           
           <div className="space-y-1.5">
-            <label className="text-slate-705 dark:text-slate-305">Nama Lengkap Owner*</label>
+            <label className="text-slate-700 dark:text-slate-400">Nama Lengkap Owner*</label>
             <input
               type="text"
               value={profileName}
@@ -260,12 +260,12 @@ export default function SettingsTab({
               type="email"
               value={currentUser.email}
               disabled
-              className="w-full bg-slate-100 dark:bg-slate-800/40 rounded-xl border border-border/60 p-3 text-slate-405 cursor-not-allowed"
+              className="w-full bg-slate-100 dark:bg-slate-800/40 rounded-xl border border-border/60 p-3 text-slate-400 cursor-not-allowed"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-slate-705 dark:text-slate-305">Nomor Telepon/WA*</label>
+            <label className="text-slate-700 dark:text-slate-400">Nomor Telepon/WA*</label>
             <input
               type="text"
               value={profilePhone}
@@ -276,7 +276,7 @@ export default function SettingsTab({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-slate-705 dark:text-slate-305">Ubah Kata Sandi (Kosongkan jika tidak diganti)</label>
+            <label className="text-slate-700 dark:text-slate-400">Ubah Kata Sandi (Kosongkan jika tidak diganti)</label>
             <input
               type="password"
               placeholder="Masukkan kata sandi baru (min. 6 karakter)..."
@@ -287,7 +287,7 @@ export default function SettingsTab({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-slate-705 dark:text-slate-305">Nama Kost Utama</label>
+            <label className="text-slate-700 dark:text-slate-400">Nama Kost Utama</label>
             <input
               type="text"
               placeholder="Contoh: Kost Lowokwaru Mandiri"
@@ -298,7 +298,7 @@ export default function SettingsTab({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-slate-705 dark:text-slate-305">Alamat Kost Utama</label>
+            <label className="text-slate-700 dark:text-slate-400">Alamat Kost Utama</label>
             <input
               type="text"
               placeholder="Contoh: Jl. Soekarno Hatta No 5"
@@ -342,7 +342,7 @@ export default function SettingsTab({
                 Tidak Aktif / Kedaluwarsa
               </p>
             )}
-            <p className="text-[10px] text-slate-405 leading-normal font-semibold">Aktifkan langganan untuk menikmati hak akses membalas ulasan, mendaftarkan kost baru, dan menyetujui inquiry sewa.</p>
+            <p className="text-[10px] text-slate-400 leading-normal font-semibold">Aktifkan langganan untuk menikmati hak akses membalas ulasan, mendaftarkan kost baru, dan menyetujui inquiry sewa.</p>
           </div>
 
           <button
@@ -378,7 +378,7 @@ export default function SettingsTab({
 
             <form onSubmit={handleRequestSubscribe} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-slate-700 dark:text-slate-350">Durasi Berlangganan (Hari)</label>
+                <label className="text-slate-700 dark:text-slate-400">Durasi Berlangganan (Hari)</label>
                 <input
                   type="number"
                   min={1}
@@ -387,7 +387,7 @@ export default function SettingsTab({
                     const days = Math.max(1, Number(e.target.value));
                     setSubDays(days);
                   }}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-850 dark:text-white font-extrabold"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white font-extrabold"
                   required
                 />
               </div>
@@ -395,8 +395,8 @@ export default function SettingsTab({
               <div className="space-y-2 bg-slate-50 dark:bg-slate-800/50 p-4.5 rounded-2xl border border-border">
                 <span className="text-slate-400 font-bold uppercase text-[9px] block">Rincian Pembayaran</span>
                 <div className="flex justify-between items-center text-xs font-bold mt-1">
-                  <span className="text-slate-650 dark:text-slate-350">Tarif Langganan</span>
-                  <span className="text-slate-850 dark:text-white">Rp {(platformSettings.ownerSubscriptionRate || 3000).toLocaleString('id-ID')} / hari</span>
+                  <span className="text-slate-600 dark:text-slate-400">Tarif Langganan</span>
+                  <span className="text-slate-800 dark:text-white">Rp {(platformSettings.ownerSubscriptionRate || 3000).toLocaleString('id-ID')} / hari</span>
                 </div>
                 <div className="flex justify-between items-center text-xs font-bold mt-2 pt-2 border-t border-border/40">
                   <span className="text-slate-700 dark:text-slate-200">Total Pembayaran ({subDays} Hari)</span>

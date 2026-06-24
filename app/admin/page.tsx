@@ -276,6 +276,7 @@ function AdminDashboardContent() {
     kostVerifications,
     approveOwner,
     approveKost,
+    adminVerifyKostDirectly,
     scheduleKostVerification,
     moderateReview,
     updateUserRole,
@@ -316,6 +317,10 @@ function AdminDashboardContent() {
 
   const [approvingVerif, setApprovingVerif] = useState<KostVerification | null>(null);
   const [expirationDate, setExpirationDate] = useState('');
+
+  const [directVerifyKost, setDirectVerifyKost] = useState<Kost | null>(null);
+  const [directVerifyExpirationDate, setDirectVerifyExpirationDate] = useState('');
+  const [directVerifyBadge, setDirectVerifyBadge] = useState<'verified' | 'highly-trusted'>('verified');
 
   const handleConfirmAction = (config: Omit<NonNullable<typeof confirmConfig>, 'isOpen'>) => {
     setConfirmConfig({ ...config, isOpen: true });
@@ -616,9 +621,6 @@ function AdminDashboardContent() {
   const [searchReviews, setSearchReviews] = useState('');
 
   // Finance & Platform Settings Tab States
-  const [commissionType, setCommissionType] = useState<'flat' | 'percentage'>('percentage');
-  const [commissionValue, setCommissionValue] = useState(5);
-  const [commissionChargedTo, setCommissionChargedTo] = useState<'student' | 'owner'>('student');
   const [smallReferralReward, setSmallReferralReward] = useState('');
   const [transactionReferralReward, setTransactionReferralReward] = useState('');
   const [ownerSubscriptionRate, setOwnerSubscriptionRate] = useState(3000);
@@ -626,9 +628,6 @@ function AdminDashboardContent() {
 
   useEffect(() => {
     if (platformSettings) {
-      setCommissionType(platformSettings.commissionType || 'percentage');
-      setCommissionValue(platformSettings.commissionValue || 5);
-      setCommissionChargedTo(platformSettings.commissionChargedTo || 'student');
       setSmallReferralReward(platformSettings.smallReferralReward || '');
       setTransactionReferralReward(platformSettings.transactionReferralReward || '');
       setOwnerSubscriptionRate(platformSettings.ownerSubscriptionRate || 3000);
@@ -640,9 +639,9 @@ function AdminDashboardContent() {
     e.preventDefault();
     try {
       await updatePlatformSettings({
-        commissionType,
-        commissionValue,
-        commissionChargedTo,
+        commissionType: 'flat',
+        commissionValue: 0,
+        commissionChargedTo: 'student',
         smallReferralReward,
         transactionReferralReward,
         ownerSubscriptionRate,
@@ -819,7 +818,7 @@ function AdminDashboardContent() {
       icon: <MessageSquare className="h-4.5 w-4.5" />,
       badge: pendingReviewsCount
     },
-    { id: 'finance', name: 'Keuangan & Komisi', icon: <Coins className="h-4.5 w-4.5" /> },
+    { id: 'finance', name: 'Keuangan', icon: <Coins className="h-4.5 w-4.5" /> },
     { id: 'promotions', name: 'Promosi & Kemitraan', icon: <Megaphone className="h-4.5 w-4.5" /> }
   ];
 
@@ -1843,14 +1842,22 @@ function AdminDashboardContent() {
                             </div>
 
                             <div className="bg-slate-50 dark:bg-slate-800/40 px-5 py-3 border-t border-border/50 flex justify-between items-center">
-                              <Link
-                                href={`/kost/${kost.id}`}
-                                className="text-[11px] font-bold text-primary hover:underline"
-                                target="_blank"
-                              >
-                                Lihat Halaman Kost →
-                              </Link>
-                              
+                              <div>
+                                {kost.verifiedStatus === 'none' && (
+                                  <button
+                                    onClick={() => {
+                                      setDirectVerifyKost(kost);
+                                      setDirectVerifyExpirationDate('');
+                                      setDirectVerifyBadge('verified');
+                                    }}
+                                    className="rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold py-1.5 px-3 transition-colors flex items-center gap-1 cursor-pointer border-0 shadow-sm hover:brightness-110"
+                                  >
+                                    <ShieldCheck className="h-3.5 w-3.5" />
+                                    <span>Verifikasi Langsung</span>
+                                  </button>
+                                )}
+                              </div>
+
                               <button
                                 onClick={() => {
                                   handleConfirmAction({
@@ -1884,17 +1891,7 @@ function AdminDashboardContent() {
           {activeTab === 'finance' && (
             <div className="space-y-8 animate-in fade-in duration-200">
               {/* Financial Metrics Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white dark:bg-slate-900 border border-border p-5 rounded-3xl shadow-sm flex flex-col justify-between h-32">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Komisi Platform (DP)</span>
-                  <div className="mt-2">
-                    <p className="text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-900/30 inline-block">Paid Commission</p>
-                    <h3 className="text-xl font-black text-slate-900 dark:text-white mt-1">
-                      Rp {bookingPayments.filter(p => p.status === 'paid').reduce((acc, p) => acc + (p.commissionAmount || 0), 0).toLocaleString('id-ID')}
-                    </h3>
-                  </div>
-                </div>
-                
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white dark:bg-slate-900 border border-border p-5 rounded-3xl shadow-sm flex flex-col justify-between h-32">
                   <span className="text-[10px] text-slate-400 font-bold uppercase block">Total DP Booking Lancar</span>
                   <div className="mt-2">
@@ -1920,59 +1917,15 @@ function AdminDashboardContent() {
                   <div className="mt-2">
                     <p className="text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-900/30 inline-block">Total Net Income</p>
                     <h3 className="text-xl font-black text-slate-900 dark:text-white mt-1">
-                      Rp {(
-                        bookingPayments.filter(p => p.status === 'paid').reduce((acc, p) => acc + (p.commissionAmount || 0), 0) +
-                        ownerPayments.filter(p => p.status === 'paid').reduce((acc, p) => acc + p.amount, 0)
-                      ).toLocaleString('id-ID')}
+                      Rp {ownerPayments.filter(p => p.status === 'paid').reduce((acc, p) => acc + p.amount, 0).toLocaleString('id-ID')}
                     </h3>
                   </div>
                 </div>
               </div>
 
-              {/* Platform settings configurations */}
               <div className="bg-white dark:bg-slate-900 border border-border rounded-3xl p-6 shadow-sm space-y-4">
                 <h4 className="font-extrabold text-slate-800 dark:text-white text-sm pb-2 border-b border-border/40">Pengaturan Biaya & Program Rujukan</h4>
                 <form onSubmit={handleSavePlatformSettings} className="space-y-4 text-xs font-semibold">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-slate-700 dark:text-slate-300">Tipe Komisi Platform</label>
-                      <CustomSelect
-                        options={[
-                          { value: 'percentage', label: 'Persentase (%)' },
-                          { value: 'flat', label: 'Nominal Flat (Rp)' }
-                        ]}
-                        value={commissionType}
-                        onChange={(val) => setCommissionType(val as any)}
-                        className="w-full text-left"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1.5">
-                      <label className="text-slate-700 dark:text-slate-300">Nilai Komisi</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={commissionValue}
-                        onChange={(e) => setCommissionValue(Number(e.target.value))}
-                        className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:border-primary text-slate-800 dark:text-white"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-slate-700 dark:text-slate-300">Pembebanan Komisi</label>
-                      <CustomSelect
-                        options={[
-                          { value: 'student', label: 'Dikenakan ke Mahasiswa (Surcharge)' },
-                          { value: 'owner', label: 'Dipotong dari Owner (Deduction)' }
-                        ]}
-                        value={commissionChargedTo}
-                        onChange={(val) => setCommissionChargedTo(val as any)}
-                        className="w-full text-left"
-                      />
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-slate-700 dark:text-slate-300">Voucher Referral Tier 1 (Pendaftaran)</label>
@@ -2046,7 +1999,6 @@ function AdminDashboardContent() {
                           <th className="px-4 py-3">Siswa (Pembayar)</th>
                           <th className="px-4 py-3">Properti Kost</th>
                           <th className="px-4 py-3">Nilai DP</th>
-                          <th className="px-4 py-3">Komisi Platform</th>
                           <th className="px-4 py-3">Status</th>
                           <th className="px-4 py-3">Metode</th>
                           <th className="px-4 py-3">Tanggal Pembayaran</th>
@@ -2064,7 +2016,6 @@ function AdminDashboardContent() {
                               </td>
                               <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">{kost?.name || 'Kost'}</td>
                               <td className="px-4 py-3 font-black text-slate-950 dark:text-white">Rp {p.dpAmount.toLocaleString('id-ID')}</td>
-                              <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">Rp {p.commissionAmount.toLocaleString('id-ID')}</td>
                               <td className="px-4 py-3">
                                 <span className={`inline-block rounded px-2 py-0.5 text-[9px] font-black border uppercase tracking-wider ${
                                   p.status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-slate-800 dark:text-emerald-400' :
@@ -2183,7 +2134,7 @@ function AdminDashboardContent() {
                               {owner.fullName}
                               <span className="block text-[9px] text-slate-400 font-semibold uppercase">{owner.email} • {owner.phone}</span>
                             </td>
-                            <td className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-350">{owner.kostName || '-'}</td>
+                            <td className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">{owner.kostName || '-'}</td>
                             <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-300">
                               {hasSub ? new Date(owner.subscriptionExpiresAt!).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Tidak Berlangganan'}
                             </td>
@@ -2233,11 +2184,11 @@ function AdminDashboardContent() {
                         const isPromoActive = hasPromo && new Date(kost.promotionExpiresAt!) > new Date();
                         return (
                           <tr key={kost.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors">
-                            <td className="px-4 py-3 font-bold text-slate-850 dark:text-white">
+                            <td className="px-4 py-3 font-bold text-slate-800 dark:text-white">
                               {kost.name}
                               <span className="block text-[9px] text-slate-400 font-semibold uppercase">{kost.address}</span>
                             </td>
-                            <td className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-350">{kost.ownerName}</td>
+                            <td className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">{kost.ownerName}</td>
                             <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-300">
                               {hasPromo ? new Date(kost.promotionExpiresAt!).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Tidak Dipromosikan'}
                             </td>
@@ -2293,13 +2244,13 @@ function AdminDashboardContent() {
                           const kost = kosts.find(k => k.id === op.kostId);
                           return (
                             <tr key={op.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors">
-                              <td className="px-4 py-3 font-bold text-slate-850 dark:text-white">
+                              <td className="px-4 py-3 font-bold text-slate-800 dark:text-white">
                                 {owner?.fullName || 'Owner'}
                                 <span className="block text-[9px] text-slate-400 font-semibold uppercase">{owner?.email || ''}</span>
                               </td>
                               <td className="px-4 py-3 font-bold">
                                 <span className={`inline-block rounded px-2 py-0.5 text-[9px] font-black border uppercase tracking-wider ${
-                                  op.paymentType === 'subscription' ? 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-slate-800 dark:text-purple-400' : 'bg-blue-50 text-primary border-blue-100 dark:bg-slate-800 dark:text-blue-400'
+                                  op.paymentType === 'subscription' ? 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-slate-800 dark:text-purple-400' : 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-slate-800 dark:text-blue-400'
                                 }`}>
                                   {op.paymentType === 'subscription' ? 'Kemitraan' : 'Iklan Promosi'}
                                 </span>
@@ -2316,7 +2267,7 @@ function AdminDashboardContent() {
                                   {op.status === 'paid' ? 'Lunas' : op.status === 'expired' ? 'Expired' : 'Pending'}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 text-slate-455 font-bold">{op.expiresAt ? new Date(op.expiresAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</td>
+                              <td className="px-4 py-3 text-slate-400 font-bold">{op.expiresAt ? new Date(op.expiresAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</td>
                               <td className="px-4 py-3 text-right">
                                 {op.status !== 'paid' && (
                                   <button
@@ -2676,7 +2627,7 @@ function AdminDashboardContent() {
                     type="email"
                     value={currentUser?.email || ''}
                     disabled
-                    className="w-full bg-slate-100 dark:bg-slate-800/40 rounded-xl border border-border/60 p-3 text-slate-455 cursor-not-allowed"
+                    className="w-full bg-slate-100 dark:bg-slate-800/40 rounded-xl border border-border/60 p-3 text-slate-400 cursor-not-allowed"
                   />
                 </div>
 
@@ -2698,7 +2649,7 @@ function AdminDashboardContent() {
                     placeholder="Masukkan kata sandi baru (min. 6 karakter)..."
                     value={profilePassword}
                     onChange={(e) => setProfilePassword(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl border border-border p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-805 dark:text-white placeholder-slate-400"
+                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl border border-border p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white placeholder-slate-400"
                   />
                 </div>
 
@@ -2739,16 +2690,16 @@ function AdminDashboardContent() {
             <p className="text-[10px] text-slate-400 leading-normal font-semibold">Tentukan tanggal kedaluwarsa langganan kemitraan untuk owner <strong>{adjustingOwner.fullName}</strong>. Kosongkan tanggal untuk membatalkan langganan.</p>
             <form onSubmit={handleAdjustOwnerSubscription} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-slate-705 dark:text-slate-350">Tanggal Kedaluwarsa Langganan</label>
+                <label className="text-slate-700 dark:text-slate-400">Tanggal Kedaluwarsa Langganan</label>
                 <input
                   type="date"
                   value={newSubExpiry}
                   onChange={(e) => setNewSubExpiry(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:border-primary text-slate-850 dark:text-white font-extrabold"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:border-primary text-slate-800 dark:text-white font-extrabold"
                 />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setAdjustingOwner(null)} className="flex-1 py-3 border border-border rounded-xl text-slate-705 dark:text-slate-202 hover:bg-slate-55 cursor-pointer">Batal</button>
+                <button type="button" onClick={() => setAdjustingOwner(null)} className="flex-1 py-3 border border-border rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">Batal</button>
                 <button type="submit" className="flex-1 py-3 bg-primary text-white rounded-xl shadow-md cursor-pointer">Simpan Perubahan</button>
               </div>
             </form>
@@ -2768,16 +2719,16 @@ function AdminDashboardContent() {
             <p className="text-[10px] text-slate-400 leading-normal font-semibold">Tentukan tanggal kedaluwarsa promosi iklan organik untuk kost <strong>{adjustingKost.name}</strong>. Kosongkan tanggal untuk membatalkan promosi.</p>
             <form onSubmit={handleAdjustKostPromotion} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-slate-705 dark:text-slate-350">Tanggal Kedaluwarsa Promosi</label>
+                <label className="text-slate-700 dark:text-slate-400">Tanggal Kedaluwarsa Promosi</label>
                 <input
                   type="date"
                   value={newPromoExpiry}
                   onChange={(e) => setNewPromoExpiry(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:border-primary text-slate-850 dark:text-white font-extrabold"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:border-primary text-slate-800 dark:text-white font-extrabold"
                 />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setAdjustingKost(null)} className="flex-1 py-3 border border-border rounded-xl text-slate-705 dark:text-slate-202 hover:bg-slate-55 cursor-pointer">Batal</button>
+                <button type="button" onClick={() => setAdjustingKost(null)} className="flex-1 py-3 border border-border rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">Batal</button>
                 <button type="submit" className="flex-1 py-3 bg-primary text-white rounded-xl shadow-md cursor-pointer">Simpan Perubahan</button>
               </div>
             </form>
@@ -2797,7 +2748,7 @@ function AdminDashboardContent() {
             <p className="text-[10px] text-slate-400 leading-normal font-semibold">Sesuaikan status reward untuk rujukan dari <strong>{users.find(u => u.id === adjustingReferral.referrerId)?.fullName || 'Inviter'}</strong> kepada <strong>{adjustingReferral.referredName || 'Invitee'}</strong>.</p>
             <form onSubmit={handleSaveReferralAdjustment} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-slate-705 dark:text-slate-350">Status Reward Registrasi (Tier 1)</label>
+                <label className="text-slate-700 dark:text-slate-400">Status Reward Registrasi (Tier 1)</label>
                 <CustomSelect
                   options={[
                     { value: 'pending', label: 'Belum Diklaim / Pending' },
@@ -2809,7 +2760,7 @@ function AdminDashboardContent() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-slate-705 dark:text-slate-350">Status Reward Transaksi (Tier 2)</label>
+                <label className="text-slate-700 dark:text-slate-400">Status Reward Transaksi (Tier 2)</label>
                 <CustomSelect
                   options={[
                     { value: 'pending', label: 'Belum Memenuhi Syarat (Pending)' },
@@ -2822,7 +2773,7 @@ function AdminDashboardContent() {
                 />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setAdjustingReferral(null)} className="flex-1 py-3 border border-border rounded-xl text-slate-705 dark:text-slate-202 hover:bg-slate-55 cursor-pointer">Batal</button>
+                <button type="button" onClick={() => setAdjustingReferral(null)} className="flex-1 py-3 border border-border rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">Batal</button>
                 <button type="submit" className="flex-1 py-3 bg-primary text-white rounded-xl shadow-md cursor-pointer">Simpan Perubahan</button>
               </div>
             </form>
@@ -2842,7 +2793,7 @@ function AdminDashboardContent() {
               <button
                 type="button"
                 onClick={() => setSchedulingVerif(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-205 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -2861,7 +2812,7 @@ function AdminDashboardContent() {
               className="space-y-4"
             >
               <div className="space-y-1.5">
-                <label className="text-slate-707 dark:text-slate-350">Tanggal Rencana Kunjungan</label>
+                <label className="text-slate-700 dark:text-slate-400">Tanggal Rencana Kunjungan</label>
                 <input
                   type="date"
                   value={visitDate}
@@ -2873,7 +2824,7 @@ function AdminDashboardContent() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-707 dark:text-slate-350">Biaya Survey (Rp)</label>
+                <label className="text-slate-700 dark:text-slate-400">Biaya Survey (Rp)</label>
                 <input
                   type="number"
                   min={0}
@@ -2889,7 +2840,7 @@ function AdminDashboardContent() {
                 <button
                   type="button"
                   onClick={() => setSchedulingVerif(null)}
-                  className="flex-1 py-3 border border-border rounded-xl text-xs font-bold text-slate-707 dark:text-slate-205 hover:bg-slate-100 cursor-pointer"
+                  className="flex-1 py-3 border border-border rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 cursor-pointer"
                 >
                   Batal
                 </button>
@@ -2917,7 +2868,7 @@ function AdminDashboardContent() {
               <button
                 type="button"
                 onClick={() => setApprovingVerif(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-205 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -2937,7 +2888,7 @@ function AdminDashboardContent() {
               className="space-y-4"
             >
               <div className="space-y-1.5">
-                <label className="text-slate-707 dark:text-slate-350">Tanggal Kadaluarsa Verifikasi</label>
+                <label className="text-slate-700 dark:text-slate-400">Tanggal Kadaluarsa Verifikasi</label>
                 <input
                   type="date"
                   value={expirationDate}
@@ -2967,6 +2918,99 @@ function AdminDashboardContent() {
                   className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 cursor-pointer"
                 >
                   Setujui Verifikasi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Verification Modal */}
+      {directVerifyKost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-border shadow-2xl w-full max-w-md overflow-hidden flex flex-col p-6 animate-in zoom-in-95 duration-200 gap-5 text-xs font-semibold text-left">
+            <div className="flex justify-between items-center pb-3 border-b border-border/60">
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                Verifikasi Properti Langsung
+              </h3>
+              <button
+                type="button"
+                onClick={() => setDirectVerifyKost(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!directVerifyExpirationDate) {
+                  showToast('Tanggal kadaluarsa wajib diisi.', 'error');
+                  return;
+                }
+                await adminVerifyKostDirectly(directVerifyKost.id, directVerifyBadge, directVerifyExpirationDate);
+                setDirectVerifyKost(null);
+              }}
+              className="space-y-4"
+            >
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-border/60 rounded-2xl flex items-center gap-3">
+                <img
+                  src={directVerifyKost.images[0] || 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=300&q=80'}
+                  alt={directVerifyKost.name}
+                  className="h-10 w-14 rounded-lg object-cover border border-border shrink-0"
+                />
+                <div className="min-w-0">
+                  <h4 className="font-extrabold text-slate-800 dark:text-slate-200 truncate">{directVerifyKost.name}</h4>
+                  <p className="text-[10px] text-slate-400 truncate">{directVerifyKost.address}</p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-slate-700 dark:text-slate-400">Tipe Badge Verifikasi</label>
+                <CustomSelect
+                  options={[
+                    { value: 'verified', label: 'Terverifikasi (Verified)' },
+                    { value: 'highly-trusted', label: 'Highly Trusted (Sangat Terpercaya)' }
+                  ]}
+                  value={directVerifyBadge}
+                  onChange={(val) => setDirectVerifyBadge(val as any)}
+                  className="w-full text-left font-bold"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-slate-700 dark:text-slate-400">Tanggal Kadaluarsa Verifikasi</label>
+                <input
+                  type="date"
+                  value={directVerifyExpirationDate}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setDirectVerifyExpirationDate(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white font-extrabold"
+                  required
+                />
+              </div>
+
+              <div className="p-3.5 bg-emerald-50 dark:bg-emerald-955/20 text-emerald-700 dark:text-emerald-400 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
+                <p className="text-[10px] leading-relaxed font-bold">
+                  *Verifikasi langsung akan segera mempublikasikan status verifikasi kost di website tanpa proses antrean atau pembayaran biaya survey oleh pemilik.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDirectVerifyKost(null)}
+                  className="flex-1 py-3 border border-border rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 cursor-pointer"
+                >
+                  Verifikasi Properti
                 </button>
               </div>
             </form>

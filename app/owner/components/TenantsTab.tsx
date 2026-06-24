@@ -283,7 +283,7 @@ export default function TenantsTab({
 
           {activeKosts.length === 0 ? (
             <div className="p-12 text-center bg-white dark:bg-slate-900 border border-border rounded-3xl text-slate-400 font-semibold flex flex-col items-center justify-center">
-              <Users className="h-12 w-12 text-slate-350 dark:text-slate-700 mb-3" />
+              <Users className="h-12 w-12 text-slate-400 dark:text-slate-700 mb-3" />
               <p>Harap daftarkan properti kost terlebih dahulu untuk mengelola data penyewa.</p>
             </div>
           ) : (
@@ -328,7 +328,7 @@ export default function TenantsTab({
                           </td>
 
                           {/* NIK */}
-                          <td className="p-4 text-slate-650 dark:text-slate-350">{tenant.nik}</td>
+                          <td className="p-4 text-slate-600 dark:text-slate-400">{tenant.nik}</td>
 
                           {/* Room allocation */}
                           <td className="p-4 font-bold text-slate-700 dark:text-slate-200">
@@ -348,7 +348,7 @@ export default function TenantsTab({
                           </td>
 
                           {/* Check-in date */}
-                          <td className="p-4 text-slate-650 dark:text-slate-350">
+                          <td className="p-4 text-slate-600 dark:text-slate-400">
                             {tenant.checkIn}
                           </td>
 
@@ -356,9 +356,9 @@ export default function TenantsTab({
                           <td className="p-4">
                             <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
                               tenant.status === 'active'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-150 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'
                                 : tenant.status === 'pending'
-                                ? 'bg-amber-50 text-amber-700 border border-amber-150 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30'
                                 : 'bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
                             }`}>
                               {tenant.status === 'active' ? 'Aktif' : tenant.status === 'pending' ? 'Booking' : 'Keluar'}
@@ -405,7 +405,7 @@ export default function TenantsTab({
                               </button>
                               <button
                                 onClick={() => handleDeleteTenant(tenant.id)}
-                                className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-550 rounded-lg cursor-pointer"
+                                className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-600 rounded-lg cursor-pointer"
                                 title="Hapus Data"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -701,7 +701,7 @@ export default function TenantsTab({
                   setView('list');
                   setEditingTenant(null);
                 }}
-                className="rounded-xl border border-border py-3 px-6 text-xs font-bold text-slate-700 dark:text-slate-205 hover:bg-slate-50 cursor-pointer"
+                className="rounded-xl border border-border py-3 px-6 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer"
               >
                 Batal
               </button>

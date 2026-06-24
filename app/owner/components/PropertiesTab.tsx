@@ -528,7 +528,7 @@ export default function PropertiesTab({
               <select
                 value={filterGender}
                 onChange={(e) => setFilterGender(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-800 border border-border/80 text-xs rounded-xl p-2 focus:outline-none text-slate-850 dark:text-slate-200 font-bold"
+                className="bg-slate-50 dark:bg-slate-800 border border-border/80 text-xs rounded-xl p-2 focus:outline-none text-slate-800 dark:text-slate-200 font-bold"
               >
                 <option value="all">Semua Tipe Gender</option>
                 <option value="male">Putra</option>
@@ -539,7 +539,7 @@ export default function PropertiesTab({
               <select
                 value={filterAvailability}
                 onChange={(e) => setFilterAvailability(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-800 border border-border/80 text-xs rounded-xl p-2 focus:outline-none text-slate-850 dark:text-slate-200 font-bold"
+                className="bg-slate-50 dark:bg-slate-800 border border-border/80 text-xs rounded-xl p-2 focus:outline-none text-slate-800 dark:text-slate-200 font-bold"
               >
                 <option value="all">Semua Ketersediaan</option>
                 <option value="available">Tersedia</option>
@@ -551,7 +551,7 @@ export default function PropertiesTab({
 
           {/* Kost Cards Grid */}
           {filteredKosts.length === 0 ? (
-            <div className="p-12 text-center bg-white dark:bg-slate-900 border border-border rounded-3xl text-sm text-slate-450 font-semibold flex flex-col items-center justify-center">
+            <div className="p-12 text-center bg-white dark:bg-slate-900 border border-border rounded-3xl text-sm text-slate-400 font-semibold flex flex-col items-center justify-center">
               <Building2 className="h-12 w-12 text-slate-300 dark:text-slate-700 mb-3" />
               <p>Belum ada properti kost yang cocok dengan filter atau pencarian Anda.</p>
               {activeKosts.length === 0 && (
@@ -629,7 +629,7 @@ export default function PropertiesTab({
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleOpenEditForm(kost)}
-                        className="p-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-border/60 rounded-xl text-slate-650 dark:text-slate-350 transition-colors cursor-pointer"
+                        className="p-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-border/60 rounded-xl text-slate-600 dark:text-slate-400 transition-colors cursor-pointer"
                         title="Edit Kost"
                       >
                         <Edit className="h-3.5 w-3.5" />
@@ -638,8 +638,8 @@ export default function PropertiesTab({
                         onClick={() => handleOpenPromoteModal(kost)}
                         className={`p-2 border rounded-xl transition-colors cursor-pointer ${
                           kost.promotionExpiresAt && new Date(kost.promotionExpiresAt) > new Date()
-                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-450 dark:border-emerald-900/30'
-                            : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-border/60 text-slate-650 dark:text-slate-350'
+                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'
+                            : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-border/60 text-slate-600 dark:text-slate-400'
                         }`}
                         title={
                           kost.promotionExpiresAt && new Date(kost.promotionExpiresAt) > new Date()
@@ -651,14 +651,14 @@ export default function PropertiesTab({
                       </button>
                       <button
                         onClick={() => handleDuplicate(kost)}
-                        className="p-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-border/60 rounded-xl text-slate-650 dark:text-slate-350 transition-colors cursor-pointer"
+                        className="p-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-border/60 rounded-xl text-slate-600 dark:text-slate-400 transition-colors cursor-pointer"
                         title="Duplikat Listing"
                       >
                         <Copy className="h-3.5 w-3.5" />
                       </button>
                       <button
                         onClick={() => handleOpenDeleteConfirm(kost.id)}
-                        className="p-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/40 rounded-xl text-rose-600 dark:text-rose-450 transition-colors cursor-pointer"
+                        className="p-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/40 rounded-xl text-rose-600 dark:text-rose-400 transition-colors cursor-pointer"
                         title="Arsipkan Kost (Soft Delete)"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -771,7 +771,7 @@ export default function PropertiesTab({
             {/* Row 3: Kampus Distances */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-2 border-t border-border/60">
               <div className="space-y-2">
-                <label className="text-slate-705 dark:text-slate-300 flex items-center gap-1.5">
+                <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Compass className="h-4 w-4 text-slate-400" />
                   <span>Jarak ke UB (km)</span>
                 </label>
@@ -785,7 +785,7 @@ export default function PropertiesTab({
               </div>
               
               <div className="space-y-2">
-                <label className="text-slate-705 dark:text-slate-300 flex items-center gap-1.5">
+                <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Compass className="h-4 w-4 text-slate-400" />
                   <span>Jarak ke UM (km)</span>
                 </label>
@@ -799,7 +799,7 @@ export default function PropertiesTab({
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-705 dark:text-slate-300 flex items-center gap-1.5">
+                <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Compass className="h-4 w-4 text-slate-400" />
                   <span>Jarak ke UMM (km)</span>
                 </label>
@@ -858,7 +858,7 @@ export default function PropertiesTab({
                   value={securityInfo}
                   onChange={(e) => setSecurityInfo(e.target.value)}
                   placeholder="CCTV, penjagaan malam, aturan jam tamu..."
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-700 dark:text-slate-205 placeholder-slate-400"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-700 dark:text-slate-200 placeholder-slate-400"
                   required
                 />
               </div>
@@ -870,7 +870,7 @@ export default function PropertiesTab({
                   placeholder="Jelaskan kenyamanan kos, ventilasi sirkulasi, ketersediaan kasur..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-700 dark:text-slate-205 placeholder-slate-400"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-700 dark:text-slate-200 placeholder-slate-400"
                   required
                 />
               </div>
@@ -911,7 +911,7 @@ export default function PropertiesTab({
 
                   <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-border flex flex-col justify-between">
                     <div className="space-y-2">
-                      <span className="text-[10px] text-slate-500 dark:text-slate-450 block">Atau input link URL gambar:</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Atau input link URL gambar:</span>
                       <input
                         type="url"
                         placeholder="https://example.com/gambar-kost.jpg"
@@ -946,7 +946,7 @@ export default function PropertiesTab({
                 
                 <div className="border border-border dark:border-slate-800 rounded-2xl p-4 bg-slate-50/20 dark:bg-slate-900/10 h-44 overflow-y-auto scrollbar-thin">
                   {images.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center text-slate-450 py-4">
+                    <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 py-4">
                       <Building2 className="h-8 w-8 opacity-45 mb-2" />
                       <span className="text-xs">Belum ada foto.</span>
                     </div>
@@ -1032,7 +1032,7 @@ export default function PropertiesTab({
                 {availableFacilitiesList.map((fac) => {
                   const isChecked = facilities.includes(fac);
                   return (
-                    <label key={fac} className="flex items-center gap-2 cursor-pointer text-xs text-slate-650 dark:text-slate-400 select-none">
+                    <label key={fac} className="flex items-center gap-2 cursor-pointer text-xs text-slate-600 dark:text-slate-400 select-none">
                       <input
                         type="checkbox"
                         checked={isChecked}
@@ -1138,7 +1138,7 @@ export default function PropertiesTab({
 
             <form onSubmit={handleRequestPromote} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-slate-700 dark:text-slate-350">Durasi Promosi (Hari)</label>
+                <label className="text-slate-700 dark:text-slate-400">Durasi Promosi (Hari)</label>
                 <input
                   type="number"
                   min={1}
@@ -1147,7 +1147,7 @@ export default function PropertiesTab({
                     const days = Math.max(1, Number(e.target.value));
                     setPromoteDays(days);
                   }}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-850 dark:text-white font-extrabold"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white font-extrabold"
                   required
                 />
               </div>
@@ -1155,8 +1155,8 @@ export default function PropertiesTab({
               <div className="space-y-2 bg-slate-50 dark:bg-slate-800/50 p-4.5 rounded-2xl border border-border">
                 <span className="text-slate-400 font-bold uppercase text-[9px] block">Rincian Pembayaran Iklan</span>
                 <div className="flex justify-between items-center text-xs font-bold mt-1">
-                  <span className="text-slate-650 dark:text-slate-350">Tarif Promosi</span>
-                  <span className="text-slate-850 dark:text-white">Rp {(platformSettings.ownerPromotionRate || 5000).toLocaleString('id-ID')} / hari</span>
+                  <span className="text-slate-600 dark:text-slate-400">Tarif Promosi</span>
+                  <span className="text-slate-800 dark:text-white">Rp {(platformSettings.ownerPromotionRate || 5000).toLocaleString('id-ID')} / hari</span>
                 </div>
                 <div className="flex justify-between items-center text-xs font-bold mt-2 pt-2 border-t border-border/40">
                   <span className="text-slate-700 dark:text-slate-200">Total Pembayaran ({promoteDays} Hari)</span>

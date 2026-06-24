@@ -57,6 +57,7 @@ interface AppContextType {
   scheduleKostVerification: (verificationId: string, price: number, visitDate: string) => Promise<void>;
   approveOwner: (verificationId: string, status: 'approved' | 'rejected') => Promise<void>;
   approveKost: (verificationId: string, status: 'approved' | 'rejected', badge?: 'verified' | 'highly-trusted', expiredAt?: string) => Promise<void>;
+  adminVerifyKostDirectly: (kostId: string, badge?: 'verified' | 'highly-trusted', expiredAt?: string) => Promise<void>;
   moderateReview: (reviewId: string, action: 'approve' | 'delete') => Promise<void>;
   updateUserRole: (userId: string, role: User['role']) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
@@ -103,7 +104,7 @@ interface AppContextType {
   generateParentCode: () => Promise<void>;
   linkChild: (code: string) => Promise<boolean>;
   unlinkChild: () => Promise<void>;
-  payInvoice: (invoiceId: string, paymentMethod: string) => Promise<void>;
+  payInvoice: (invoiceId: string, paymentMethod: string, voucherCode?: string, discountAmount?: number) => Promise<void>;
 
   toast: { message: string; type: 'success' | 'error' | 'info' } | null;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -136,8 +137,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [bookingPayments, setBookingPayments] = useState<BookingPayment[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings>({
-    commissionType: 'percentage',
-    commissionValue: 5,
+    commissionType: 'flat',
+    commissionValue: 0,
     commissionChargedTo: 'student',
     smallReferralReward: 'Voucher Diskon Rp 10.000',
     transactionReferralReward: 'Voucher Diskon Rp 50.000',
@@ -731,6 +732,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const adminVerifyKostDirectly = async (
+    kostId: string,
+    badge: 'verified' | 'highly-trusted' = 'verified',
+    expiredAt?: string
+  ) => {
+    const now = new Date().toISOString();
+    const approvedAt = now.split('T')[0];
+
+    const newVerif = {
+      kostId,
+      status: 'approved' as const,
+      submittedAt: now,
+      approvedAt,
+      price: 0,
+      visitDate: approvedAt,
+      expiredAt
+    };
+
+    const { data: verifData, error: verifError } = await supabase
+      .from('kost_verifications')
+      .insert(newVerif)
+      .select()
+      .single();
+
+    if (verifError) {
+      console.error('Error creating direct verification:', verifError);
+      showToast('Gagal memproses verifikasi langsung: ' + verifError.message, 'error');
+      return;
+    }
+
+    if (verifData) {
+      setKostVerifications(prev => [verifData, ...prev]);
+
+      const { error: kostError } = await supabase
+        .from('kosts')
+        .update({ 
+          verifiedStatus: badge,
+          verifiedExpiresAt: expiredAt || null
+        })
+        .eq('id', kostId);
+
+      if (!kostError) {
+        setKosts(prev => 
+          prev.map(k => k.id === kostId ? { 
+            ...k, 
+            verifiedStatus: badge,
+            verifiedExpiresAt: expiredAt || null
+          } : k)
+        );
+        showToast('Kost berhasil diverifikasi langsung!', 'success');
+      } else {
+        console.error('Error updating kost verified status:', kostError);
+        showToast('Gagal memperbarui status verifikasi kost.', 'error');
+      }
+    }
+  };
+
   const moderateReview = async (reviewId: string, action: 'approve' | 'delete') => {
     if (action === 'delete') {
       const targetReview = reviews.find(r => r.id === reviewId);
@@ -1304,12 +1362,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
 
-      let commissionAmount = 0;
-      if (platformSettings.commissionType === 'percentage') {
-        commissionAmount = Math.round((dpAmount * platformSettings.commissionValue) / 100);
-      } else {
-        commissionAmount = platformSettings.commissionValue;
-      }
+      const commissionAmount = 0;
 
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
@@ -1815,14 +1868,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Hubungan akun anak berhasil diputus.', 'success');
   };
 
-  const payInvoice = async (invoiceId: string, paymentMethod: string) => {
+  const payInvoice = async (invoiceId: string, paymentMethod: string, voucherCode?: string, discountAmount?: number) => {
     const paidDate = new Date().toISOString().split('T')[0];
+    
+    // Fetch the current invoice first to get its current amount and notes
+    const currentInvoice = invoices.find(inv => inv.id === invoiceId);
+    const originalAmount = currentInvoice?.amount || 0;
+    const currentNotes = currentInvoice?.notes || '';
+    
+    const finalAmount = Math.max(0, originalAmount - (discountAmount || 0));
+    const appendNotes = voucherCode ? ` (Voucher ${voucherCode} digunakan. Diskon: Rp ${discountAmount?.toLocaleString('id-ID')})` : '';
+    const newNotes = currentNotes + appendNotes;
+
     const { data, error } = await supabase
       .from('invoices')
       .update({
         status: 'paid' as const,
         paidDate,
-        paymentMethod
+        paymentMethod,
+        amount: finalAmount,
+        notes: newNotes
       })
       .eq('id', invoiceId)
       .select()
@@ -1836,7 +1901,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (data) {
       setInvoices(prev => prev.map(inv => inv.id === invoiceId ? data : inv));
-      showToast('Pembayaran berhasil! Tagihan telah dilunasi.', 'success');
+      showToast(voucherCode ? `Pembayaran berhasil! Diskon voucher diterapkan: Rp ${discountAmount?.toLocaleString('id-ID')}` : 'Pembayaran berhasil! Tagihan telah dilunasi.', 'success');
     }
   };
 
@@ -1879,6 +1944,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         scheduleKostVerification,
         approveOwner,
         approveKost,
+        adminVerifyKostDirectly,
         moderateReview,
         updateUserRole,
         deleteUser,

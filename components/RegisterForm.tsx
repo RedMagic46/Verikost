@@ -500,7 +500,7 @@ export default function RegisterForm() {
                   </p>
                 )}
                 {referralError && (
-                  <p className="text-[10px] text-amber-550 dark:text-amber-450 font-bold pl-1 flex items-center gap-1 mt-1">
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold pl-1 flex items-center gap-1 mt-1">
                     <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-amber-500" /> {referralError}
                   </p>
                 )}

@@ -288,7 +288,7 @@ export default function ChatTab() {
               placeholder="Cari kontak chat..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white dark:bg-slate-850 rounded-xl border border-border/80 pl-9 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-800 dark:text-white placeholder-slate-400"
+              className="w-full bg-white dark:bg-slate-800 rounded-xl border border-border/80 pl-9 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-800 dark:text-white placeholder-slate-400"
             />
             {searchQuery && (
               <button 
@@ -305,7 +305,7 @@ export default function ChatTab() {
         <div className="flex-1 overflow-y-auto p-2 space-y-1.5 scrollbar-thin">
           {filteredChannels.length === 0 ? (
             <div className="p-8 text-center text-slate-400 space-y-2">
-              <MessageSquare className="h-8 w-8 mx-auto text-slate-350" />
+              <MessageSquare className="h-8 w-8 mx-auto text-slate-400" />
               <p className="font-extrabold text-slate-500">Belum Ada Chat</p>
               <p className="text-[10px] leading-relaxed">
                 {searchQuery ? 'Tidak ada kontak yang cocok.' : 'Pesan dari mahasiswa akan muncul di sini secara otomatis.'}
@@ -351,11 +351,11 @@ export default function ChatTab() {
                       </span>
                     </div>
 
-                    <span className="inline-block text-[8px] font-black uppercase bg-blue-50 text-blue-700 dark:bg-slate-800 dark:text-blue-450 dark:border-blue-900/30 px-1 rounded leading-none">
+                    <span className="inline-block text-[8px] font-black uppercase bg-blue-50 text-blue-700 dark:bg-slate-800 dark:text-blue-400 dark:border-blue-900/30 px-1 rounded leading-none">
                       {roleLabels[ch.partner.role] || ch.partner.role}
                     </span>
 
-                    <p className="text-[10px] truncate font-semibold mt-1 text-slate-500 dark:text-slate-450">
+                    <p className="text-[10px] truncate font-semibold mt-1 text-slate-500 dark:text-slate-400">
                       {ch.lastMessage}
                     </p>
                   </div>
@@ -379,7 +379,7 @@ export default function ChatTab() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setIsMobileDetailActive(false)}
-                  className="md:hidden p-1.5 rounded-lg bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 transition-colors text-slate-600 dark:text-slate-200"
+                  className="md:hidden p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 transition-colors text-slate-600 dark:text-slate-200"
                 >
                   <Search className="h-4 w-4 rotate-90" />
                 </button>
@@ -466,7 +466,7 @@ export default function ChatTab() {
                   placeholder="Ketik pesan balasan Anda..."
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  className="flex-1 bg-slate-50 dark:bg-slate-850 rounded-xl border border-border/80 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-800 dark:text-white placeholder-slate-400 font-semibold shadow-inner"
+                  className="flex-1 bg-slate-50 dark:bg-slate-800 rounded-xl border border-border/80 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-slate-800 dark:text-white placeholder-slate-400 font-semibold shadow-inner"
                   required
                   autoComplete="off"
                 />

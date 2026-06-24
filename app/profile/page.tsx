@@ -472,14 +472,14 @@ function ProfileContent() {
                               setCustomReferralCode(currentUser.referralCode || '');
                               setIsEditingRef(false);
                             }}
-                            className="bg-slate-200 hover:bg-slate-350 text-slate-700 font-bold text-[10px] px-3 py-1.5 rounded-lg cursor-pointer border-0"
+                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-[10px] px-3 py-1.5 rounded-lg cursor-pointer border-0"
                           >
                             Batal
                           </button>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <span className="text-base font-black text-slate-850 dark:text-white tracking-wide">{currentUser.referralCode || '-'}</span>
+                          <span className="text-base font-black text-slate-800 dark:text-white tracking-wide">{currentUser.referralCode || '-'}</span>
                           <button
                             type="button"
                             onClick={() => setIsEditingRef(true)}
@@ -518,7 +518,7 @@ function ProfileContent() {
                 </div>
 
                 <div className="space-y-3">
-                  <h4 className="text-[11px] font-extrabold uppercase text-slate-705 dark:text-slate-350 tracking-wider">Teman yang Anda Undang</h4>
+                  <h4 className="text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-400 tracking-wider">Teman yang Anda Undang</h4>
                   
                   {(() => {
                     const myInvites = referrals?.filter(r => r.referrerId === currentUser.id) || [];
@@ -539,7 +539,7 @@ function ProfileContent() {
                               <th className="p-3 text-right">Klaim Reward</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-border text-slate-650 dark:text-slate-400">
+                          <tbody className="divide-y divide-border text-slate-600 dark:text-slate-400">
                             {myInvites.map((invite) => (
                               <tr key={invite.id} className="hover:bg-slate-50/30">
                                 <td className="p-3">
@@ -552,7 +552,7 @@ function ProfileContent() {
                                   ) : invite.transactionRewardStatus === 'earned' ? (
                                     <span className="text-amber-600 font-extrabold animate-pulse">Siap Diklaim (DP Lunas)</span>
                                   ) : (
-                                    <span className="text-slate-450 font-semibold">Terdaftar (Belum Booking)</span>
+                                    <span className="text-slate-400 font-semibold">Terdaftar (Belum Booking)</span>
                                   )}
                                 </td>
                                 <td className="p-3 text-right space-y-1">
@@ -583,7 +583,7 @@ function ProfileContent() {
                                       const suffix = getVoucherSuffix(platformSettings.smallReferralReward);
                                       const code = `VK-REF-${invite.id.substring(4, 8).toUpperCase()}-${suffix}`;
                                       return (
-                                        <div className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 px-2 py-0.5 rounded-lg text-[9px] text-emerald-600 dark:text-emerald-450 font-bold animate-in fade-in duration-200">
+                                        <div className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 px-2 py-0.5 rounded-lg text-[9px] text-emerald-600 dark:text-emerald-400 font-bold animate-in fade-in duration-200">
                                           <span>Voucher Reg: </span>
                                           <code className="bg-emerald-100 dark:bg-emerald-900/40 px-1 rounded select-all font-mono font-black text-slate-800 dark:text-slate-100 uppercase">
                                             {code}
@@ -609,7 +609,7 @@ function ProfileContent() {
                                       const suffix = getVoucherSuffix(platformSettings.transactionReferralReward);
                                       const code = `VK-REF-${invite.id.substring(4, 8).toUpperCase()}-${suffix}`;
                                       return (
-                                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-955/20 border border-amber-100 dark:border-amber-900/30 px-2 py-0.5 rounded-lg text-[9px] text-amber-600 dark:text-amber-455 font-bold animate-in fade-in duration-200">
+                                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-955/20 border border-amber-100 dark:border-amber-900/30 px-2 py-0.5 rounded-lg text-[9px] text-amber-600 dark:text-amber-400 font-bold animate-in fade-in duration-200">
                                           <span>Voucher Book: </span>
                                           <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded select-all font-mono font-black text-slate-800 dark:text-slate-100 uppercase">
                                             {code}
@@ -632,7 +632,7 @@ function ProfileContent() {
                                     })()}
 
                                     {invite.smallRewardStatus === 'claimed' && invite.transactionRewardStatus !== 'earned' && invite.transactionRewardStatus !== 'claimed' && (
-                                      <span className="text-[9px] text-slate-455 font-bold italic">Sign-up Diklaim ✓</span>
+                                      <span className="text-[9px] text-slate-400 font-bold italic">Sign-up Diklaim ✓</span>
                                     )}
                                     {invite.transactionRewardStatus === 'claimed' && (
                                       <span className="text-[9px] text-emerald-600 font-bold italic">Semua Diklaim ✓</span>

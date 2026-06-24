@@ -308,7 +308,7 @@ export default function PaymentsTab({
 
               <button
                 onClick={() => setView('bulk')}
-                className="inline-flex items-center justify-center gap-1.5 bg-indigo-550 hover:bg-indigo-600 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-sm transition-all hover:scale-102 cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-sm transition-all hover:scale-102 cursor-pointer"
               >
                 <Wallet className="h-4 w-4" />
                 <span>Bulk Generate</span>
@@ -326,7 +326,7 @@ export default function PaymentsTab({
 
           {activeKosts.length === 0 ? (
             <div className="p-12 text-center bg-white dark:bg-slate-900 border border-border rounded-3xl text-slate-400 font-semibold flex flex-col items-center justify-center">
-              <Wallet className="h-12 w-12 text-slate-350 dark:text-slate-700 mb-3" />
+              <Wallet className="h-12 w-12 text-slate-400 dark:text-slate-700 mb-3" />
               <p>Harap daftarkan properti kost terlebih dahulu untuk mengelola tagihan keuangan.</p>
             </div>
           ) : (
@@ -400,7 +400,7 @@ export default function PaymentsTab({
                               </td>
 
                               {/* Period */}
-                              <td className="p-4 text-slate-650 dark:text-slate-350">
+                              <td className="p-4 text-slate-600 dark:text-slate-400">
                                 {monthOptions.find(m => m.value === inv.periodMonth)?.label || inv.periodMonth} {inv.periodYear}
                               </td>
 
@@ -410,12 +410,12 @@ export default function PaymentsTab({
                               </td>
 
                               {/* Due Date */}
-                              <td className="p-4 text-slate-650 dark:text-slate-350">
+                              <td className="p-4 text-slate-600 dark:text-slate-400">
                                 {inv.dueDate}
                               </td>
 
                               {/* Paid Date */}
-                              <td className="p-4 text-slate-650 dark:text-slate-350 font-bold">
+                              <td className="p-4 text-slate-600 dark:text-slate-400 font-bold">
                                 {inv.paidDate ? (
                                   <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                                     <Check className="h-3.5 w-3.5" />
@@ -467,14 +467,14 @@ export default function PaymentsTab({
 
                                   <button
                                     onClick={() => handleOpenEditForm(inv)}
-                                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-650 dark:text-slate-350 rounded-lg cursor-pointer"
+                                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg cursor-pointer"
                                     title="Edit Tagihan"
                                   >
                                     <Edit className="h-4 w-4" />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteInvoice(inv.id)}
-                                    className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-550 rounded-lg cursor-pointer"
+                                    className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-600 rounded-lg cursor-pointer"
                                     title="Hapus"
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -661,7 +661,7 @@ export default function PaymentsTab({
                 placeholder="e.g. Sudah ditransfer ke rekening BCA, bukti terlampir, dll."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-750 dark:text-slate-200"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-700 dark:text-slate-200"
               />
             </div>
 
