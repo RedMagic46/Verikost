@@ -43,7 +43,18 @@ const sortOptions = [
 function SearchResultsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { kosts, currentUser } = useApp();
+  const { kosts, currentUser, campuses, getKostDistance } = useApp();
+
+  const dynamicCampusOptions = useMemo(() => {
+    const visible = campuses.filter(c => c.isVisible);
+    return [
+      { value: '', label: 'Semua Kampus' },
+      ...visible.map(c => ({
+        value: c.id,
+        label: `Dekat ${c.name.includes('(') ? c.name.match(/\(([^)]+)\)/)?.[1] || c.name : c.name}`
+      }))
+    ];
+  }, [campuses]);
 
   const [queryInput, setQueryInput] = useState('');
   const [selectedCampus, setSelectedCampus] = useState('');
@@ -91,13 +102,7 @@ function SearchResultsContent() {
     return [-7.95 + latOffset, 112.61 + lngOffset];
   };
 
-  const getDistanceToUIN = (kost: Kost): number => {
-    const uinCoords: [number, number] = [-7.9520, 112.6068];
-    const kostCoords = getKostCoordinates(kost);
-    const dLat = (kostCoords[0] - uinCoords[0]) * 111.12;
-    const dLng = (kostCoords[1] - uinCoords[1]) * 110.06;
-    return Number(Math.sqrt(dLat * dLat + dLng * dLng).toFixed(1));
-  };
+
 
   useEffect(() => {
     const q = searchParams.get('query') || '';
@@ -185,17 +190,16 @@ function SearchResultsContent() {
       }
 
       if (selectedCampus) {
-        if (selectedCampus === 'ub' && kost.distanceToUB > appliedMaxDistance) return false;
-        if (selectedCampus === 'um' && kost.distanceToUM > appliedMaxDistance) return false;
-        if (selectedCampus === 'umm' && kost.distanceToUMM > appliedMaxDistance) return false;
-        if (selectedCampus === 'uin' && getDistanceToUIN(kost) > appliedMaxDistance) return false;
+        const dist = getKostDistance(kost, selectedCampus);
+        if (dist <= 0 || dist > appliedMaxDistance) return false;
       } else {
-        const minDistance = Math.min(
-          kost.distanceToUB,
-          kost.distanceToUM,
-          kost.distanceToUMM,
-          getDistanceToUIN(kost)
-        );
+        const distances = campuses
+          .filter(c => c.isVisible)
+          .map(c => getKostDistance(kost, c.id))
+          .filter(d => d > 0);
+        
+        if (distances.length === 0) return false;
+        const minDistance = Math.min(...distances);
         if (minDistance > appliedMaxDistance) return false;
       }
 
@@ -230,26 +234,21 @@ function SearchResultsContent() {
         return rB - rA;
       }
       if (sortBy === 'distance-asc') {
-        const distA =
-          selectedCampus === 'ub'
-            ? a.distanceToUB
-            : selectedCampus === 'um'
-            ? a.distanceToUM
-            : selectedCampus === 'umm'
-            ? a.distanceToUMM
-            : selectedCampus === 'uin'
-            ? getDistanceToUIN(a)
-            : Math.min(a.distanceToUB, a.distanceToUM, a.distanceToUMM, getDistanceToUIN(a));
-        const distB =
-          selectedCampus === 'ub'
-            ? b.distanceToUB
-            : selectedCampus === 'um'
-            ? b.distanceToUM
-            : selectedCampus === 'umm'
-            ? b.distanceToUMM
-            : selectedCampus === 'uin'
-            ? getDistanceToUIN(b)
-            : Math.min(b.distanceToUB, b.distanceToUM, b.distanceToUMM, getDistanceToUIN(b));
+        const getSortDistance = (k: Kost) => {
+          if (selectedCampus) {
+            const dist = getKostDistance(k, selectedCampus);
+            return dist > 0 ? dist : Infinity;
+          }
+          
+          const validDists = campuses
+            .filter(c => c.isVisible)
+            .map(c => getKostDistance(k, c.id))
+            .filter(d => d > 0);
+          return validDists.length > 0 ? Math.min(...validDists) : Infinity;
+        };
+
+        const distA = getSortDistance(a);
+        const distB = getSortDistance(b);
         return distA - distB;
       }
       return 0;
@@ -297,7 +296,7 @@ function SearchResultsContent() {
             <div className="flex flex-wrap sm:flex-nowrap gap-3 shrink-0 items-center">
               
               <CustomSelect
-                options={campusOptions}
+                options={dynamicCampusOptions}
                 value={selectedCampus}
                 onChange={setSelectedCampus}
                 icon={<GraduationCap className="h-4.5 w-4.5" />}
@@ -637,13 +636,12 @@ function SearchResultsContent() {
                     Kampus Terdekat
                   </h3>
                   <ul className="space-y-2">
-                    {[
-                      { id: 'ub', label: 'Universitas Brawijaya', code: 'UB' },
-                      { id: 'um', label: 'Universitas Negeri Malang', code: 'UM' },
-                      { id: 'umm', label: 'Universitas Muhammadiyah', code: 'UMM' },
-                      { id: 'uin', label: 'UIN Maulana Malik Ibrahim', code: 'UIN' },
-                    ].map((campus) => {
+                    {campuses.filter(c => c.isVisible).map((campus) => {
                       const isActive = selectedCampus === campus.id;
+                      const campusLabel = campus.name.replace(/\s*\([^)]*\)/, '');
+                      const match = campus.name.match(/\(([^)]+)\)/);
+                      const campusCode = match ? match[1].toUpperCase() : campus.name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 4);
+
                       return (
                         <li key={campus.id}>
                           <button
@@ -658,13 +656,13 @@ function SearchResultsContent() {
                                 : 'border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
                             }`}
                           >
-                            <span>{campus.label}</span>
+                            <span>{campusLabel}</span>
                             <span className={`text-[9px] font-extrabold py-0.5 px-2 rounded-full transition-colors ${
                               isActive
                                 ? 'bg-primary text-white'
                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                             }`}>
-                              {campus.code}
+                              {campusCode}
                             </span>
                           </button>
                         </li>

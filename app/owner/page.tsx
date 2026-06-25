@@ -327,7 +327,6 @@ function OwnerDashboardContent() {
                   myRooms={myRooms} 
                   myTenants={myTenants} 
                   myInvoices={myInvoices} 
-                  myInquiries={myInquiries}
                   setActiveTab={setActiveTab}
                 />
               )}

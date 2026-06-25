@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { User, Inquiry, Invoice } from '@/app/types';
+import { User, Invoice } from '@/app/types';
 import { 
   LayoutDashboard, 
   Building2, 

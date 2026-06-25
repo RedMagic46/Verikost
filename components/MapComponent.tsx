@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Kost } from '@/app/types';
+import { useApp } from '@/app/context/AppContext';
 
 interface MapComponentProps {
   kosts: Kost[];
@@ -21,18 +22,20 @@ export default function MapComponent({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<L.Map | null>(null);
   const markersRef = useRef<Record<string, L.Marker>>({});
-
-  
-  const CAMPUS_COORDS: Record<string, [number, number]> = {
-    ub: [-7.9525, 112.6138],
-    um: [-7.9622, 112.6172],
-    umm: [-7.9213, 112.5979],
-    uin: [-7.9520, 112.6068],
-  };
+  const { campuses } = useApp();
 
   const DEFAULT_CENTER: [number, number] = [-7.95, 112.61]; 
   const DEFAULT_ZOOM = 13;
 
+  const getCampusAbbr = (campus: any): string => {
+    const match = campus.name.match(/\(([^)]+)\)/);
+    if (match) return match[1].toUpperCase();
+    return campus.name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 4);
+  };
+
+  const getCampusShortName = (campus: any): string => {
+    return campus.name.replace(/\s*\([^)]*\)/, '');
+  };
   
   const getKostCoordinates = (kost: Kost): [number, number] => {
     if (kost.latitude && kost.longitude) {
@@ -89,13 +92,10 @@ export default function MapComponent({
 
     const campusMarkers: L.Marker[] = [];
 
-    Object.entries(CAMPUS_COORDS).forEach(([name, coords]) => {
-      const campusLabel = name.toUpperCase();
-      const campusFullName =
-        name === 'ub' ? 'Brawijaya' :
-        name === 'um' ? 'UM Malang' :
-        name === 'umm' ? 'UMM Kampus 3' :
-        name === 'uin' ? 'UIN Malang' : 'Kampus';
+    campuses.filter(c => c.isVisible).forEach((campus) => {
+      const coords: [number, number] = [campus.latitude, campus.longitude];
+      const campusLabel = getCampusAbbr(campus);
+      const campusFullName = getCampusShortName(campus);
 
       const campusIcon = L.divIcon({
         className: 'bg-transparent border-none',
@@ -120,7 +120,7 @@ export default function MapComponent({
     return () => {
       campusMarkers.forEach((m) => m.remove());
     };
-  }, [map]);
+  }, [map, campuses]);
 
   
   useEffect(() => {
@@ -135,8 +135,9 @@ export default function MapComponent({
   useEffect(() => {
     if (!map) return;
 
-    if (selectedCampus && CAMPUS_COORDS[selectedCampus]) {
-      map.flyTo(CAMPUS_COORDS[selectedCampus], 15, { duration: 1.5 });
+    const activeCampus = campuses.find(c => c.id === selectedCampus);
+    if (selectedCampus && activeCampus) {
+      map.flyTo([activeCampus.latitude, activeCampus.longitude], 15, { duration: 1.5 });
     } else if (kosts.length > 0) {
       const coordsList = kosts.map((k) => getKostCoordinates(k));
       const bounds = L.latLngBounds(coordsList);
@@ -144,7 +145,7 @@ export default function MapComponent({
     } else {
       map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
     }
-  }, [map, selectedCampus, kosts.length]);
+  }, [map, selectedCampus, kosts.length, campuses]);
 
   
   useEffect(() => {

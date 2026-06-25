@@ -14,7 +14,15 @@ interface KostCardProps {
 }
 
 export default function KostCard({ kost, viewType = 'grid' }: KostCardProps) {
-  const { favorites, compareList, toggleFavorite, toggleCompare, currentUser, showToast } = useApp();
+  const { favorites, compareList, toggleFavorite, toggleCompare, currentUser, showToast, campuses, getKostDistance } = useApp();
+  
+  const getCampusAbbr = (campusName: string): string => {
+    const match = campusName.match(/\(([^)]+)\)/);
+    if (match) return match[1].toUpperCase();
+    return campusName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 4);
+  };
+
+  const visibleCampuses = campuses.filter(c => c.isVisible).slice(0, 3);
   
   const isFavorited = favorites.includes(kost.id);
   const isCompared = compareList.includes(kost.id);
@@ -105,19 +113,19 @@ export default function KostCard({ kost, viewType = 'grid' }: KostCardProps) {
             </div>
 
             
-            <div className="grid grid-cols-3 gap-2 py-1.5 px-2 bg-muted/40 rounded-lg text-[10px] text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Compass className="h-3 w-3 text-slate-400" />
-                <span>UB: {kost.distanceToUB} km</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Compass className="h-3 w-3 text-slate-400" />
-                <span>UM: {kost.distanceToUM} km</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Compass className="h-3 w-3 text-slate-400" />
-                <span>UMM: {kost.distanceToUMM} km</span>
-              </div>
+            <div className={`grid grid-cols-${visibleCampuses.length || 1} gap-2 py-1.5 px-2 bg-muted/40 rounded-lg text-[10px] text-muted-foreground`}>
+              {visibleCampuses.map((campus) => {
+                const dist = getKostDistance(kost, campus.id);
+                return (
+                  <div key={campus.id} className="flex items-center gap-1">
+                    <Compass className="h-3 w-3 text-slate-400 animate-pulse" />
+                    <span>{getCampusAbbr(campus.name)}: {dist > 0 ? `${dist} km` : '-'}</span>
+                  </div>
+                );
+              })}
+              {visibleCampuses.length === 0 && (
+                <div className="text-center w-full col-span-full">Informasi jarak tidak tersedia</div>
+              )}
             </div>
 
             
@@ -239,19 +247,22 @@ export default function KostCard({ kost, viewType = 'grid' }: KostCardProps) {
           </div>
 
           
-          <div className="grid grid-cols-3 gap-1.5 py-1 px-1.5 bg-muted/40 rounded-lg text-[9px] text-muted-foreground text-center">
-            <div>
-              <p className="font-semibold text-slate-700 dark:text-slate-300">{kost.distanceToUB} km</p>
-              <p className="text-[8px]">ke UB</p>
-            </div>
-            <div className="border-x border-border">
-              <p className="font-semibold text-slate-700 dark:text-slate-300">{kost.distanceToUM} km</p>
-              <p className="text-[8px]">ke UM</p>
-            </div>
-            <div>
-              <p className="font-semibold text-slate-700 dark:text-slate-300">{kost.distanceToUMM} km</p>
-              <p className="text-[8px]">ke UMM</p>
-            </div>
+          <div className={`grid grid-cols-${visibleCampuses.length || 1} gap-1.5 py-1 px-1.5 bg-muted/40 rounded-lg text-[9px] text-muted-foreground text-center`}>
+            {visibleCampuses.map((campus, idx) => {
+              const dist = getKostDistance(kost, campus.id);
+              const isBorderX = visibleCampuses.length === 3 && idx === 1;
+              return (
+                <div key={campus.id} className={isBorderX ? "border-x border-border" : ""}>
+                  <p className="font-semibold text-slate-700 dark:text-slate-300">
+                    {dist > 0 ? `${dist} km` : '-'}
+                  </p>
+                  <p className="text-[8px]">ke {getCampusAbbr(campus.name)}</p>
+                </div>
+              );
+            })}
+            {visibleCampuses.length === 0 && (
+              <div className="text-center w-full col-span-full text-[8px]">Informasi jarak tidak tersedia</div>
+            )}
           </div>
         </div>
 

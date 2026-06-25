@@ -26,10 +26,13 @@ import Link from 'next/link';
 import { supabase } from '@/app/lib/supabase';
 import { useApp } from '@/app/context/AppContext';
 import CheckoutModal from '@/components/CheckoutModal';
+import dynamic from 'next/dynamic';
+
+const AdminMapSelector = dynamic(() => import('@/components/AdminMapSelector'), { ssr: false });
 
 interface PropertiesTabProps {
   myKosts: Kost[];
-  addKost: (kost: Omit<Kost, 'id' | 'rating' | 'views' | 'ownerId' | 'ownerName' | 'ownerPhone'>) => Promise<void>;
+  addKost: (kost: Omit<Kost, 'id' | 'rating' | 'views' | 'ownerId' | 'ownerName' | 'ownerPhone'>) => Promise<string | null>;
   deleteKost: (id: string) => Promise<void>;
   updateKostAvailability: (id: string, availability: Kost['roomAvailability']) => Promise<void>;
   showToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
@@ -48,7 +51,16 @@ export default function PropertiesTab({
   const [view, setView] = useState<'list' | 'add' | 'edit'>('list');
   const [editingKost, setEditingKost] = useState<Kost | null>(null);
 
-  const { createOwnerPayment, executeMockOwnerPayment, platformSettings, currentUser } = useApp();
+  const { 
+    createOwnerPayment, 
+    executeMockOwnerPayment, 
+    platformSettings, 
+    currentUser,
+    campuses,
+    distanceOverrides,
+    updateDistanceOverrides,
+    getKostDistance
+  } = useApp();
   const [promoteKost, setPromoteKost] = useState<Kost | null>(null);
   const [promoteDays, setPromoteDays] = useState(7);
   const promoteAmount = promoteDays * (platformSettings.ownerPromotionRate || 5000);
@@ -96,29 +108,62 @@ export default function PropertiesTab({
 
   // Form Fields
   const [name, setName] = useState('');
-  const [price, setPrice] = useState(1200000);
+  const [price, setPrice] = useState<number | ''>('');
   const [genderCategory, setGenderCategory] = useState<'male' | 'female' | 'mixed'>('female');
   const [address, setAddress] = useState('');
   const [district, setDistrict] = useState('Lowokwaru');
-  const [distUB, setDistUB] = useState(1.0);
-  const [distUM, setDistUM] = useState(1.5);
-  const [distUMM, setDistUMM] = useState(3.0);
+  const [campusDistances, setCampusDistances] = useState<Record<string, string | number>>({});
+  const [activeCampuses, setActiveCampuses] = useState<string[]>([]);
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
-  const [securityInfo, setSecurityInfo] = useState('CCTV 24 Jam aktif, gerbang utama kartu RFID, jam malam 22.00.');
+  const [securityInfo, setSecurityInfo] = useState('');
   const [description, setDescription] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [videoTour, setVideoTour] = useState('');
   const [roomAvailability, setRoomAvailability] = useState<'available' | 'limited' | 'full'>('available');
-  const [facilities, setFacilities] = useState<string[]>(['WiFi', 'Kamar Mandi Dalam', 'Kasur Springbed', 'Meja Belajar']);
+  const [facilities, setFacilities] = useState<string[]>([]);
   const [bookingDpAmount, setBookingDpAmount] = useState(0);
+  const [useMapCoordinates, setUseMapCoordinates] = useState(false);
 
   // UI States
   const [imageUrlInput, setImageUrlInput] = useState('');
+  const [showCampusDropdown, setShowCampusDropdown] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [uploadImageError, setUploadImageError] = useState<string | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [kostToDelete, setKostToDelete] = useState<string | null>(null);
+
+  const lastCalculatedCoords = React.useRef<{ lat: string; lng: string }>({ lat: '', lng: '' });
+
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const dLat = (lat1 - lat2) * 111.12;
+    const dLng = (lng1 - lng2) * 110.06;
+    return Number(Math.sqrt(dLat * dLat + dLng * dLng).toFixed(1));
+  };
+
+  // Auto-calculation of campus distances based on coordinates
+  React.useEffect(() => {
+    const latNum = parseFloat(latitude);
+    const lngNum = parseFloat(longitude);
+    const hasValidCoords = !isNaN(latNum) && !isNaN(lngNum) && latitude.trim() !== '' && longitude.trim() !== '';
+
+    if (hasValidCoords) {
+      const latChanged = latitude !== lastCalculatedCoords.current.lat;
+      const lngChanged = longitude !== lastCalculatedCoords.current.lng;
+
+      if (latChanged || lngChanged) {
+        const updatedDistances = { ...campusDistances };
+        activeCampuses.forEach(campusId => {
+          const campus = campuses.find(c => c.id === campusId);
+          if (campus) {
+            updatedDistances[campusId] = calculateDistance(latNum, lngNum, campus.latitude, campus.longitude);
+          }
+        });
+        setCampusDistances(updatedDistances);
+        lastCalculatedCoords.current = { lat: latitude, lng: longitude };
+      }
+    }
+  }, [latitude, longitude, activeCampuses, campuses]);
 
   // Load draft from localStorage when entering 'add' view or when currentUser is loaded
   React.useEffect(() => {
@@ -132,9 +177,7 @@ export default function PropertiesTab({
           if (draft.genderCategory !== undefined) setGenderCategory(draft.genderCategory);
           if (draft.address !== undefined) setAddress(draft.address);
           if (draft.district !== undefined) setDistrict(draft.district);
-          if (draft.distUB !== undefined) setDistUB(draft.distUB);
-          if (draft.distUM !== undefined) setDistUM(draft.distUM);
-          if (draft.distUMM !== undefined) setDistUMM(draft.distUMM);
+          if (draft.campusDistances !== undefined) setCampusDistances(draft.campusDistances);
           if (draft.latitude !== undefined) setLatitude(draft.latitude);
           if (draft.longitude !== undefined) setLongitude(draft.longitude);
           if (draft.securityInfo !== undefined) setSecurityInfo(draft.securityInfo);
@@ -144,6 +187,8 @@ export default function PropertiesTab({
           if (draft.roomAvailability !== undefined) setRoomAvailability(draft.roomAvailability);
           if (draft.facilities !== undefined) setFacilities(draft.facilities);
           if (draft.bookingDpAmount !== undefined) setBookingDpAmount(draft.bookingDpAmount);
+          if (draft.activeCampuses !== undefined) setActiveCampuses(draft.activeCampuses);
+          if (draft.useMapCoordinates !== undefined) setUseMapCoordinates(draft.useMapCoordinates);
         } catch (e) {
           console.error("Gagal memuat draf kost:", e);
         }
@@ -160,9 +205,7 @@ export default function PropertiesTab({
         genderCategory,
         address,
         district,
-        distUB,
-        distUM,
-        distUMM,
+        campusDistances,
         latitude,
         longitude,
         securityInfo,
@@ -171,7 +214,9 @@ export default function PropertiesTab({
         videoTour,
         roomAvailability,
         facilities,
-        bookingDpAmount
+        bookingDpAmount,
+        activeCampuses,
+        useMapCoordinates
       };
       localStorage.setItem(`vk_kost_draft_${currentUser.id}`, JSON.stringify(draft));
     }
@@ -183,9 +228,7 @@ export default function PropertiesTab({
     genderCategory,
     address,
     district,
-    distUB,
-    distUM,
-    distUMM,
+    campusDistances,
     latitude,
     longitude,
     securityInfo,
@@ -194,7 +237,9 @@ export default function PropertiesTab({
     videoTour,
     roomAvailability,
     facilities,
-    bookingDpAmount
+    bookingDpAmount,
+    activeCampuses,
+    useMapCoordinates
   ]);
 
   const activeKosts = useMemo(() => {
@@ -238,22 +283,23 @@ export default function PropertiesTab({
       return;
     }
     setName('');
-    setPrice(1200000);
+    setPrice('');
     setGenderCategory('female');
     setAddress('');
     setDistrict('Lowokwaru');
-    setDistUB(1.0);
-    setDistUM(1.5);
-    setDistUMM(3.0);
+    setCampusDistances({});
+    setActiveCampuses([]);
+    lastCalculatedCoords.current = { lat: '', lng: '' };
     setLatitude('');
     setLongitude('');
-    setSecurityInfo('CCTV 24 Jam aktif, gerbang utama kartu RFID, jam malam 22.00.');
+    setSecurityInfo('');
     setDescription('');
-    setImages(['https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=800&q=80']);
-    setVideoTour('https://www.w3schools.com/html/mov_bbb.mp4');
+    setImages([]);
+    setVideoTour('');
     setRoomAvailability('available');
-    setFacilities(['WiFi', 'Kamar Mandi Dalam', 'Kasur Springbed', 'Meja Belajar']);
+    setFacilities([]);
     setBookingDpAmount(0);
+    setUseMapCoordinates(false);
     setView('add');
   };
 
@@ -264,11 +310,28 @@ export default function PropertiesTab({
     setGenderCategory(kost.genderCategory);
     setAddress(kost.address);
     setDistrict(kost.district);
-    setDistUB(kost.distanceToUB);
-    setDistUM(kost.distanceToUM);
-    setDistUMM(kost.distanceToUMM);
+    
+    const active: string[] = [];
+    const dists: Record<string, string | number> = {};
+    
+    campuses.forEach(c => {
+      const dist = getKostDistance(kost, c.id);
+      if (dist > 0) {
+        active.push(c.id);
+        dists[c.id] = dist;
+      }
+    });
+
+    setActiveCampuses(active);
+    setCampusDistances(dists);
+
     setLatitude(kost.latitude?.toString() || '');
     setLongitude(kost.longitude?.toString() || '');
+    lastCalculatedCoords.current = {
+      lat: kost.latitude?.toString() || '',
+      lng: kost.longitude?.toString() || ''
+    };
+
     setSecurityInfo(kost.securityInfo);
     setDescription(kost.description);
     setImages(kost.images);
@@ -276,6 +339,7 @@ export default function PropertiesTab({
     setRoomAvailability(kost.roomAvailability);
     setFacilities(kost.facilities);
     setBookingDpAmount(kost.bookingDpAmount || 0);
+    setUseMapCoordinates(!!kost.latitude && !!kost.longitude);
     setView('edit');
   };
 
@@ -385,9 +449,9 @@ export default function PropertiesTab({
         verifiedStatus: editingKost ? editingKost.verifiedStatus : 'none' as const,
         roomAvailability,
         genderCategory,
-        distanceToUB: Number(distUB),
-        distanceToUM: Number(distUM),
-        distanceToUMM: Number(distUMM),
+        distanceToUB: activeCampuses.includes('ub') ? Number(campusDistances['ub'] || 0) : 0,
+        distanceToUM: activeCampuses.includes('um') ? Number(campusDistances['um'] || 0) : 0,
+        distanceToUMM: activeCampuses.includes('umm') ? Number(campusDistances['umm'] || 0) : 0,
         latitude: latitude ? Number(latitude) : undefined,
         longitude: longitude ? Number(longitude) : undefined,
         securityInfo,
@@ -395,7 +459,19 @@ export default function PropertiesTab({
       };
 
       if (view === 'add') {
-        await addKost(payload);
+        const newKostId = await addKost(payload);
+        if (newKostId) {
+          // Update overrides
+          const overridesForKost: Record<string, number> = {};
+          activeCampuses.forEach(cid => {
+            overridesForKost[cid] = Number(campusDistances[cid] || 0);
+          });
+          const newOverrides = {
+            ...distanceOverrides,
+            [newKostId]: overridesForKost
+          };
+          await updateDistanceOverrides(newOverrides);
+        }
         showToast('Kost baru berhasil didaftarkan.', 'success');
         if (currentUser?.id) {
           localStorage.removeItem(`vk_kost_draft_${currentUser.id}`);
@@ -408,15 +484,26 @@ export default function PropertiesTab({
 
         if (error) throw error;
         
+        // Update overrides
+        const overridesForKost: Record<string, number> = {};
+        activeCampuses.forEach(cid => {
+          overridesForKost[cid] = Number(campusDistances[cid] || 0);
+        });
+        const newOverrides = {
+          ...distanceOverrides,
+          [editingKost.id]: overridesForKost
+        };
+        await updateDistanceOverrides(newOverrides);
+
         // Update local state in myKosts ref
         editingKost.name = name;
         editingKost.price = Number(price);
         editingKost.genderCategory = genderCategory;
         editingKost.address = address;
         editingKost.district = district;
-        editingKost.distanceToUB = Number(distUB);
-        editingKost.distanceToUM = Number(distUM);
-        editingKost.distanceToUMM = Number(distUMM);
+        editingKost.distanceToUB = activeCampuses.includes('ub') ? Number(campusDistances['ub'] || 0) : 0;
+        editingKost.distanceToUM = activeCampuses.includes('um') ? Number(campusDistances['um'] || 0) : 0;
+        editingKost.distanceToUMM = activeCampuses.includes('umm') ? Number(campusDistances['umm'] || 0) : 0;
         editingKost.latitude = latitude ? Number(latitude) : undefined;
         editingKost.longitude = longitude ? Number(longitude) : undefined;
         editingKost.securityInfo = securityInfo;
@@ -724,7 +811,7 @@ export default function PropertiesTab({
                   <input
                     type="number"
                     value={price}
-                    onChange={(e) => setPrice(Number(e.target.value))}
+                    onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))}
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white"
                     required
                   />
@@ -770,81 +857,190 @@ export default function PropertiesTab({
 
             {/* Row 3: Kampus Distances */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-2 border-t border-border/60">
-              <div className="space-y-2">
-                <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Compass className="h-4 w-4 text-slate-400" />
-                  <span>Jarak ke UB (km)</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={distUB}
-                  onChange={(e) => setDistUB(Number(e.target.value))}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Compass className="h-4 w-4 text-slate-400" />
-                  <span>Jarak ke UM (km)</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={distUM}
-                  onChange={(e) => setDistUM(Number(e.target.value))}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white"
-                />
-              </div>
+              {/* Active Campus Distance Inputs */}
+              {activeCampuses.map(campusId => {
+                const campus = campuses.find(c => c.id === campusId);
+                if (!campus) return null;
+                
+                // Color themes matching dynamic campuses
+                const themeColors: Record<string, string> = {
+                  ub: 'text-primary',
+                  um: 'text-emerald-500',
+                  umm: 'text-purple-500',
+                  uin: 'text-sky-500'
+                };
+                const iconColor = themeColors[campusId] || 'text-indigo-500';
 
-              <div className="space-y-2">
-                <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Compass className="h-4 w-4 text-slate-400" />
-                  <span>Jarak ke UMM (km)</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={distUMM}
-                  onChange={(e) => setDistUMM(Number(e.target.value))}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white"
-                />
-              </div>
+                return (
+                  <div key={campusId} className="space-y-2 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex justify-between items-center">
+                      <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5 font-bold">
+                        <Compass className={`h-4 w-4 ${iconColor} animate-spin-slow`} />
+                        <span>Jarak ke {campus.name.split(' ').pop()?.replace(/[()]/g, '') || campus.name} (km)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveCampuses(prev => prev.filter(c => c !== campusId));
+                          setCampusDistances(prev => {
+                            const copy = { ...prev };
+                            delete copy[campusId];
+                            return copy;
+                          });
+                        }}
+                        className="text-rose-500 hover:text-rose-600 hover:scale-105 transition-transform text-[10px] font-black cursor-pointer border-0 bg-transparent p-0"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      step="0.1"
+                      placeholder="0.0"
+                      value={campusDistances[campusId] || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCampusDistances(prev => ({
+                          ...prev,
+                          [campusId]: val
+                        }));
+                      }}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white"
+                    />
+                  </div>
+                );
+              })}
+
+              {/* Single '+' Campus Dropdown Selector */}
+              {campuses.filter(c => c.isVisible && !activeCampuses.includes(c.id)).length > 0 && (
+                <div className="flex flex-col justify-center items-center min-h-[76px] border-2 border-dashed border-border dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/10 rounded-2xl p-3 text-center transition-all hover:bg-slate-50/50 dark:hover:bg-slate-900/20 relative animate-in fade-in duration-200">
+                  <div className="relative w-full max-w-[200px]">
+                    <button
+                      type="button"
+                      onClick={() => setShowCampusDropdown(!showCampusDropdown)}
+                      className="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-3.5 py-2.5 text-[11px] font-extrabold cursor-pointer border-0 shadow-xs transition-all active:scale-98"
+                    >
+                      <Plus className="h-3.5 w-3.5 text-white shrink-0" />
+                      <span className="text-white">Tambah Jarak Kampus</span>
+                    </button>
+
+                    {showCampusDropdown && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-10" 
+                          onClick={() => setShowCampusDropdown(false)}
+                        />
+                        <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-border/80 dark:border-slate-800 rounded-2xl shadow-2xl p-1.5 z-20 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-150 scrollbar-none">
+                          {campuses
+                            .filter(c => c.isVisible && !activeCampuses.includes(c.id))
+                            .map(campus => (
+                              <button
+                                key={campus.id}
+                                type="button"
+                                onClick={() => {
+                                  setActiveCampuses(prev => [...prev, campus.id]);
+                                  const latNum = parseFloat(latitude);
+                                  const lngNum = parseFloat(longitude);
+                                  if (!isNaN(latNum) && !isNaN(lngNum) && latitude.trim() !== '' && longitude.trim() !== '') {
+                                    setCampusDistances(prev => ({
+                                      ...prev,
+                                      [campus.id]: calculateDistance(latNum, lngNum, campus.latitude, campus.longitude)
+                                    }));
+                                  }
+                                  setShowCampusDropdown(false);
+                                }}
+                                className="w-full text-left px-3 py-2 rounded-xl text-[10px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer border-0 bg-transparent"
+                              >
+                                {campus.name}
+                              </button>
+                            ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Row 4: Coordinates */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2 border-t border-border/60">
-              <div className="space-y-2">
-                <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <MapPin className="h-4 w-4 text-slate-400" />
-                  <span>Koordinat Latitude (Lintang)</span>
-                </label>
+             {/* Row 4: Coordinates Toggler */}
+            <div className="space-y-3 pt-2 border-t border-border/60">
+              <label className="flex items-center gap-2.5 cursor-pointer text-slate-700 dark:text-slate-300 select-none">
                 <input
-                  type="number"
-                  step="any"
-                  placeholder="Contoh: -7.9495"
-                  value={latitude}
-                  onChange={(e) => setLatitude(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white placeholder-slate-400"
+                  type="checkbox"
+                  checked={useMapCoordinates}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setUseMapCoordinates(checked);
+                    if (!checked) {
+                      setLatitude('');
+                      setLongitude('');
+                    }
+                  }}
+                  className="h-4.5 w-4.5 rounded border-border text-primary focus:ring-primary focus:ring-2"
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <MapPin className="h-4 w-4 text-slate-400" />
-                  <span>Koordinat Longitude (Bujur)</span>
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  placeholder="Contoh: 112.6155"
-                  value={longitude}
-                  onChange={(e) => setLongitude(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white placeholder-slate-400"
-                />
-              </div>
+                <div className="flex flex-col">
+                  <span className={useMapCoordinates ? 'text-slate-900 dark:text-white font-black' : 'text-slate-700 dark:text-slate-350'}>
+                    Tentukan Koordinat Hunian & Jarak Kampus Otomatis
+                  </span>
+                  <span className="text-[9px] text-slate-400 font-medium">Aktifkan untuk memilih lokasi dari peta interaktif dan menghitung jarak ke kampus secara real-time.</span>
+                </div>
+              </label>
             </div>
+
+            {useMapCoordinates && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                {/* Coordinates Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-1">
+                  <div className="space-y-2">
+                    <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4 text-slate-400" />
+                      <span>Koordinat Latitude (Lintang)</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="Contoh: -7.9495"
+                      value={latitude}
+                      onChange={(e) => setLatitude(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white placeholder-slate-400"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4 text-slate-400" />
+                      <span>Koordinat Longitude (Bujur)</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="Contoh: 112.6155"
+                      value={longitude}
+                      onChange={(e) => setLongitude(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white placeholder-slate-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Map Selector for Coordinates */}
+                <div className="space-y-2 pt-1">
+                  <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5 font-bold">
+                    <Compass className="h-4 w-4 text-primary animate-pulse-slow" />
+                    <span>Pilih Lokasi Hunian dari Peta (Klik peta atau geser pin)</span>
+                  </label>
+                  <div className="w-full h-72 rounded-2xl overflow-hidden border border-border/80 dark:border-slate-800 shadow-sm relative z-10">
+                    <AdminMapSelector
+                      latitude={latitude ? parseFloat(latitude) : 0}
+                      longitude={longitude ? parseFloat(longitude) : 0}
+                      onChange={(lat, lng) => {
+                        setLatitude(lat.toString());
+                        setLongitude(lng.toString());
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Security Info & Description */}
             <div className="space-y-4 pt-2 border-t border-border/60">
@@ -1007,23 +1203,7 @@ export default function PropertiesTab({
               </div>
             </div>
 
-            {/* Booking DP Settings */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-border/60">
-              <div className="space-y-2">
-                <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-slate-400" />
-                  <span>Nominal DP Booking Online (IDR)</span>
-                </label>
-                <input
-                  type="number"
-                  placeholder="e.g. 500000 (Isi 0 jika tidak memerlukan DP)"
-                  value={bookingDpAmount}
-                  onChange={(e) => setBookingDpAmount(Number(e.target.value))}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white"
-                />
-                <span className="text-[10px] text-muted-foreground block font-medium">Nominal Down Payment yang harus dibayarkan penyewa untuk mengamankan booking kamar secara online.</span>
-              </div>
-            </div>
+
 
             {/* Facilities Checkboxes */}
             <div className="space-y-3 pt-4 border-t border-border/60">

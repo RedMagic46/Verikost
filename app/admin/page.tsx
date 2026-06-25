@@ -31,13 +31,18 @@ import {
   Megaphone,
   DollarSign,
   Percent,
-  Clock
+  Clock,
+  Compass,
+  MapPin
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { User, Kost, KostVerification } from '@/app/types';
+import { User, Kost, KostVerification, Campus } from '@/app/types';
 import { supabase } from '@/app/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
+import dynamic from 'next/dynamic';
+
+const AdminMapSelector = dynamic(() => import('@/components/AdminMapSelector'), { ssr: false });
 
 export default function AdminDashboardPage() {
   return (
@@ -297,7 +302,9 @@ function AdminDashboardContent() {
     adminAdjustReferral,
     executeMockOwnerPayment,
     adminAdjustOwnerSubscription,
-    adminAdjustKostPromotion
+    adminAdjustKostPromotion,
+    campuses,
+    updateCampuses
   } = useApp();
 
   const [confirmConfig, setConfirmConfig] = useState<{
@@ -356,6 +363,81 @@ function AdminDashboardContent() {
     'https://api.dicebear.com/7.x/avataaars/svg?seed=Endang&eyebrows=default&mouth=smile',
     'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&eyebrows=default&mouth=smile'
   ];
+
+  // Campus Management states
+  const [isCampusModalOpen, setIsCampusModalOpen] = useState(false);
+  const [editingCampus, setEditingCampus] = useState<Campus | null>(null);
+  const [campusName, setCampusName] = useState('');
+  const [campusLat, setCampusLat] = useState<number>(-7.9525);
+  const [campusLng, setCampusLng] = useState<number>(112.6144);
+  const [campusVisible, setCampusVisible] = useState(true);
+  const [campusSearch, setCampusSearch] = useState('');
+
+  const filteredCampuses = useMemo(() => {
+    if (!campusSearch.trim()) return campuses;
+    return campuses.filter(c => c.name.toLowerCase().includes(campusSearch.toLowerCase()));
+  }, [campuses, campusSearch]);
+
+  const handleSaveCampus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!campusName.trim()) {
+      showToast('Nama kampus wajib diisi', 'error');
+      return;
+    }
+
+    const newCampus: Campus = {
+      id: editingCampus ? editingCampus.id : `campus-${Date.now()}`,
+      name: campusName,
+      latitude: campusLat,
+      longitude: campusLng,
+      isVisible: campusVisible
+    };
+
+    let updatedCampuses: Campus[];
+    if (editingCampus) {
+      updatedCampuses = campuses.map(c => c.id === editingCampus.id ? newCampus : c);
+    } else {
+      updatedCampuses = [...campuses, newCampus];
+    }
+
+    await updateCampuses(updatedCampuses);
+    showToast(editingCampus ? 'Kampus berhasil diperbarui!' : 'Kampus baru berhasil ditambahkan!', 'success');
+    setIsCampusModalOpen(false);
+    setEditingCampus(null);
+    setCampusName('');
+    setCampusLat(-7.9525);
+    setCampusLng(112.6144);
+    setCampusVisible(true);
+  };
+
+  const handleEditCampus = (campus: Campus) => {
+    setEditingCampus(campus);
+    setCampusName(campus.name);
+    setCampusLat(campus.latitude);
+    setCampusLng(campus.longitude);
+    setCampusVisible(campus.isVisible);
+    setIsCampusModalOpen(true);
+  };
+
+  const handleDeleteCampus = (campusId: string, campusName: string) => {
+    handleConfirmAction({
+      title: 'Hapus Kampus?',
+      description: `Apakah Anda yakin ingin menghapus kampus "${campusName}"? Seluruh data jarak kost ke kampus ini akan dihitung dinamis menggunakan koordinat default jika tersedia.`,
+      confirmText: 'Ya, Hapus',
+      variant: 'danger',
+      onConfirm: async () => {
+        const updatedCampuses = campuses.filter(c => c.id !== campusId);
+        await updateCampuses(updatedCampuses);
+        showToast('Kampus berhasil dihapus!', 'success');
+      }
+    });
+  };
+
+  const handleToggleCampusVisibility = async (campus: Campus) => {
+    const updatedCampuses = campuses.map(c => c.id === campus.id ? { ...c, isVisible: !c.isVisible } : c);
+    await updateCampuses(updatedCampuses);
+    showToast(`Visibilitas kampus ${campus.name} berhasil diubah!`, 'success');
+  };
 
   const handleOpenEditProfile = () => {
     if (!currentUser) return;
@@ -508,7 +590,7 @@ function AdminDashboardContent() {
     }
   };
 
-  const [activeTab, setActiveTabState] = useState<'analytics' | 'owners-queue' | 'kosts-queue' | 'users' | 'kosts-list' | 'reviews' | 'finance' | 'promotions'>('analytics');
+  const [activeTab, setActiveTabState] = useState<'analytics' | 'owners-queue' | 'kosts-queue' | 'users' | 'kosts-list' | 'reviews' | 'finance' | 'promotions' | 'campuses'>('analytics');
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -519,7 +601,7 @@ function AdminDashboardContent() {
     }
   }, [currentUser?.id]);
 
-  const setActiveTab = (tab: 'analytics' | 'owners-queue' | 'kosts-queue' | 'users' | 'kosts-list' | 'reviews' | 'finance' | 'promotions') => {
+  const setActiveTab = (tab: 'analytics' | 'owners-queue' | 'kosts-queue' | 'users' | 'kosts-list' | 'reviews' | 'finance' | 'promotions' | 'campuses') => {
     setActiveTabState(tab);
     if (currentUser?.id) {
       localStorage.setItem(`vk_admin_tab_${currentUser.id}`, tab);
@@ -819,7 +901,8 @@ function AdminDashboardContent() {
       badge: pendingReviewsCount
     },
     { id: 'finance', name: 'Keuangan', icon: <Coins className="h-4.5 w-4.5" /> },
-    { id: 'promotions', name: 'Promosi & Kemitraan', icon: <Megaphone className="h-4.5 w-4.5" /> }
+    { id: 'promotions', name: 'Promosi & Kemitraan', icon: <Megaphone className="h-4.5 w-4.5" /> },
+    { id: 'campuses', name: 'Manajemen Kampus', icon: <Compass className="h-4.5 w-4.5" /> }
   ];
 
   return (
@@ -1836,7 +1919,7 @@ function AdminDashboardContent() {
                                 </div>
                                 <div>
                                   <span className="text-slate-400 block text-[9px] uppercase font-bold">Jarak Ke Kampus UB</span>
-                                  <span className="text-slate-700 dark:text-slate-200">{kost.distanceToUB} km</span>
+                                  <span className="text-slate-700 dark:text-slate-200">{kost.distanceToUB > 0 ? `${kost.distanceToUB} km` : '-'}</span>
                                 </div>
                               </div>
                             </div>
@@ -2299,6 +2382,124 @@ function AdminDashboardContent() {
             </div>
           )}
 
+          {activeTab === 'campuses' && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 dark:text-white leading-tight">Manajemen Kampus</h3>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                    Kelola daftar kampus yang terintegrasi di platform VeriKost Malang untuk mempermudah pencarian kost mahasiswa.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingCampus(null);
+                    setCampusName('');
+                    setCampusLat(-7.9525);
+                    setCampusLng(112.6144);
+                    setCampusVisible(true);
+                    setIsCampusModalOpen(true);
+                  }}
+                  className="rounded-xl bg-primary hover:bg-blue-600 text-white text-xs font-bold shadow-md shadow-primary/20 px-5 py-2.5 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <Compass className="h-4 w-4" />
+                  <span>Tambah Kampus</span>
+                </button>
+              </div>
+
+              {/* Campus List Table Container */}
+              <div className="bg-white dark:bg-slate-900 border border-border rounded-3xl overflow-hidden shadow-sm p-5 space-y-4">
+                {/* Filters / Search */}
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                  <div className="relative w-full sm:max-w-xs">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Cari nama kampus..."
+                      value={campusSearch}
+                      onChange={(e) => setCampusSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-border/80 text-xs focus:outline-none focus:border-primary text-slate-800 dark:text-white"
+                    />
+                  </div>
+                  <div className="text-xs text-slate-400 font-bold">
+                    Total: {filteredCampuses.length} Kampus
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-border text-slate-400 font-extrabold uppercase tracking-wider">
+                        <th className="px-4 py-3">Nama Kampus</th>
+                        <th className="px-4 py-3">Koordinat Latitude</th>
+                        <th className="px-4 py-3">Koordinat Longitude</th>
+                        <th className="px-4 py-3">Visibilitas</th>
+                        <th className="px-4 py-3 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {filteredCampuses.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-8 text-center text-slate-400 font-semibold">
+                            Tidak ada data kampus ditemukan.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredCampuses.map((campus) => (
+                          <tr key={campus.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors">
+                            <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">
+                              {campus.name}
+                              <span className="block text-[9px] text-slate-400 font-semibold uppercase">ID: {campus.id}</span>
+                            </td>
+                            <td className="px-4 py-3 font-mono text-slate-600 dark:text-slate-400 font-semibold">{campus.latitude}</td>
+                            <td className="px-4 py-3 font-mono text-slate-600 dark:text-slate-400 font-semibold">{campus.longitude}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleToggleCampusVisibility(campus)}
+                                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                    campus.isVisible ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-800'
+                                  }`}
+                                >
+                                  <span
+                                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                                      campus.isVisible ? 'translate-x-4' : 'translate-x-0'
+                                    }`}
+                                  />
+                                </button>
+                                <span className={`text-[10px] font-bold ${campus.isVisible ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500'}`}>
+                                  {campus.isVisible ? 'Visible' : 'Hidden'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  onClick={() => handleEditCampus(campus)}
+                                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                  title="Edit Kampus"
+                                >
+                                  <Edit className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCampus(campus.id, campus.name)}
+                                  className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 transition-colors cursor-pointer"
+                                  title="Hapus Kampus"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
         </section>
 
       </main>
@@ -2525,6 +2726,129 @@ function AdminDashboardContent() {
                 </button>
               </div>
 
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Campus Create/Edit Modal */}
+      {isCampusModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-border shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-200 scrollbar-none">
+            <div className="flex justify-between items-center pb-4 border-b border-border/80">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight">
+                  {editingCampus ? 'Edit Kampus' : 'Tambah Kampus Baru'}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {editingCampus ? `Ubah informasi kampus ${editingCampus.name}` : 'Masukkan data kampus baru beserta koordinat lokasinya.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCampusModalOpen(false);
+                  setEditingCampus(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCampus} className="space-y-5 text-xs font-semibold">
+              <div className="space-y-1.5">
+                <label className="text-slate-700 dark:text-slate-300">Nama Kampus*</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Universitas Brawijaya (UB)"
+                  value={campusName}
+                  onChange={(e) => setCampusName(e.target.value)}
+                  required
+                  className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl border border-border p-3 focus:outline-none focus:border-primary text-slate-800 dark:text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-slate-700 dark:text-slate-300">Koordinat Latitude (Lintang)*</label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    placeholder="-7.9525"
+                    value={campusLat}
+                    onChange={(e) => setCampusLat(Number(e.target.value))}
+                    required
+                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl border border-border p-3 focus:outline-none focus:border-primary text-slate-800 dark:text-white"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-slate-700 dark:text-slate-300">Koordinat Longitude (Bujur)*</label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    placeholder="112.6144"
+                    value={campusLng}
+                    onChange={(e) => setCampusLng(Number(e.target.value))}
+                    required
+                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl border border-border p-3 focus:outline-none focus:border-primary text-slate-800 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Map Selector */}
+              <div className="space-y-1.5">
+                <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-slate-400" />
+                  <span>Pilih Lokasi di Peta</span>
+                </label>
+                <div className="w-full h-72 rounded-2xl overflow-hidden border border-border dark:border-slate-800 relative bg-slate-50 dark:bg-slate-950">
+                  <AdminMapSelector
+                    latitude={campusLat}
+                    longitude={campusLng}
+                    onChange={(lat, lng) => {
+                      setCampusLat(lat);
+                      setCampusLng(lng);
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCampusVisible(!campusVisible)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    campusVisible ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-800'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      campusVisible ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className="text-slate-700 dark:text-slate-300">Tampilkan kampus ini di pencarian & filter</span>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-border/80">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCampusModalOpen(false);
+                    setEditingCampus(null);
+                  }}
+                  className="px-5 py-3 rounded-xl border border-border hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-350 transition-all font-bold cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-3 rounded-xl bg-primary hover:bg-blue-600 text-white font-bold transition-all shadow-md shadow-primary/20 cursor-pointer"
+                >
+                  Simpan Kampus
+                </button>
+              </div>
             </form>
           </div>
         </div>

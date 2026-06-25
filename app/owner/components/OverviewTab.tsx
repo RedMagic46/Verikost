@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Kost, Room, Tenant, Invoice, Inquiry } from '@/app/types';
+import { Kost, Room, Tenant, Invoice } from '@/app/types';
 import { 
   Building2, 
   BedDouble, 
@@ -21,7 +21,6 @@ interface OverviewTabProps {
   myRooms: Room[];
   myTenants: Tenant[];
   myInvoices: Invoice[];
-  myInquiries: Inquiry[];
   setActiveTab: (tab: any) => void;
 }
 
@@ -30,7 +29,6 @@ export default function OverviewTab({
   myRooms,
   myTenants,
   myInvoices,
-  myInquiries,
   setActiveTab
 }: OverviewTabProps) {
 
@@ -43,8 +41,6 @@ export default function OverviewTab({
   
   const activeTenants = myTenants.filter(t => t.status === 'active').length;
   const totalViews = myKosts.reduce((sum, k) => sum + (k.views || 0), 0);
-  
-  const pendingInquiries = myInquiries.filter(i => i.status === 'pending').length;
 
   // Revenue Calculations
   const currentMonthStr = String(new Date().getMonth() + 1).padStart(2, '0');
@@ -79,13 +75,21 @@ export default function OverviewTab({
     }).format(num);
   };
 
-  // SVG Chart: Views vs Inquiries (last 6 months / periods)
-  // We mock a realistic 6-period data points, computed or simulated from real data
+  // SVG Chart: Views (last 6 months / periods)
+  // We distribute totalViews cumulatively over the months, or use zeros if totalViews is 0
   const chartPeriods = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'];
-  const chartViewsData = [120, 150, 180, 220, 290, totalViews > 0 ? Math.min(totalViews, 500) : 340];
-  const chartLeadsData = [12, 18, 22, 30, 42, myInquiries.length > 0 ? myInquiries.length * 5 : 48];
+  const chartViewsData = totalViews > 0 
+    ? [
+        Math.round(totalViews * 0.3), 
+        Math.round(totalViews * 0.45), 
+        Math.round(totalViews * 0.6), 
+        Math.round(totalViews * 0.75), 
+        Math.round(totalViews * 0.9), 
+        totalViews
+      ] 
+    : [0, 0, 0, 0, 0, 0];
 
-  const maxChartValue = Math.max(...chartViewsData, ...chartLeadsData, 100);
+  const maxChartValue = Math.max(...chartViewsData, 100);
 
   // SVG parameters
   const width = 500;
@@ -94,12 +98,6 @@ export default function OverviewTab({
 
   const pointsViews = chartViewsData.map((val, index) => {
     const x = padding + (index * (width - padding * 2)) / (chartViewsData.length - 1);
-    const y = height - padding - (val * (height - padding * 2)) / maxChartValue;
-    return `${x},${y}`;
-  }).join(' ');
-
-  const pointsLeads = chartLeadsData.map((val, index) => {
-    const x = padding + (index * (width - padding * 2)) / (chartLeadsData.length - 1);
     const y = height - padding - (val * (height - padding * 2)) / maxChartValue;
     return `${x},${y}`;
   }).join(' ');
@@ -168,31 +166,25 @@ export default function OverviewTab({
           </div>
         </div>
 
-        {/* Pending Inquiries */}
+        {/* Active Tenants */}
         <div 
-          onClick={() => setActiveTab('inquiries')}
+          onClick={() => setActiveTab('tenants')}
           className="bg-white dark:bg-slate-900 border border-border p-5 rounded-3xl shadow-sm flex flex-col justify-between h-36 hover:shadow-md transition-shadow cursor-pointer relative overflow-hidden group"
         >
           <div className="flex justify-between items-start">
             <div className="p-2.5 bg-indigo-50 dark:bg-slate-800 rounded-xl text-indigo-500 shrink-0">
-              <Mail className="h-5.5 w-5.5" />
+              <Users className="h-5.5 w-5.5" />
             </div>
-            {pendingInquiries > 0 ? (
-              <span className="text-[10px] font-black text-rose-600 bg-rose-50 dark:bg-rose-950/20 px-2 py-0.5 rounded-full border border-rose-100 dark:border-rose-900/30 animate-pulse">
-                Butuh Tindakan
-              </span>
-            ) : (
-              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-900/30">
-                Selesai
-              </span>
-            )}
+            <span className="text-[10px] font-black text-blue-600 bg-blue-50 dark:bg-blue-950/20 px-2 py-0.5 rounded-full border border-blue-100 dark:border-blue-900/30">
+              Aktif
+            </span>
           </div>
           <div>
             <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-none">
-              {pendingInquiries}
+              {activeTenants}
             </h3>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5 flex items-center gap-1">
-              Inquiry Pending <ArrowUpRight className="h-3 w-3 text-slate-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              Penyewa Aktif <ArrowUpRight className="h-3 w-3 text-slate-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </p>
           </div>
         </div>
@@ -228,21 +220,17 @@ export default function OverviewTab({
       {/* Main Analytics Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Chart Views vs Inquiries (2/3 Column) */}
+        {/* Chart Views (2/3 Column) */}
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-border p-6 rounded-3xl shadow-sm space-y-6">
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pb-4 border-b border-border/40">
             <div>
-              <h3 className="font-extrabold text-slate-800 dark:text-white text-base">Views vs Inquiry</h3>
-              <p className="text-[10px] text-muted-foreground font-semibold">Statistik konversi kunjungan menjadi calon penyewa (30 hari terakhir)</p>
+              <h3 className="font-extrabold text-slate-800 dark:text-white text-base">Views Properti</h3>
+              <p className="text-[10px] text-muted-foreground font-semibold">Jumlah kunjungan calon penyewa ke halaman kost Anda (6 bulan terakhir)</p>
             </div>
             <div className="flex gap-4">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 bg-primary rounded-full"></span>
                 <span className="text-[9px] font-bold text-slate-400 uppercase">Profile Views</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 bg-amber-500 rounded-full"></span>
-                <span className="text-[9px] font-bold text-slate-400 uppercase">Leads (Inquiries)</span>
               </div>
             </div>
           </div>
@@ -307,17 +295,6 @@ export default function OverviewTab({
                 className="drop-shadow-[0_4px_6px_rgba(2,132,199,0.25)]"
               />
 
-              {/* Leads Line */}
-              <polyline
-                fill="none"
-                stroke="#f59e0b" /* amber */
-                strokeWidth="3.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                points={pointsLeads}
-                className="drop-shadow-[0_4px_6px_rgba(245,158,11,0.25)]"
-              />
-
               {/* Views Dots */}
               {chartViewsData.map((val, index) => {
                 const x = padding + (index * (width - padding * 2)) / (chartViewsData.length - 1);
@@ -331,23 +308,6 @@ export default function OverviewTab({
                     className="fill-white stroke-sky-600 stroke-2 hover:scale-125 transition-transform cursor-pointer"
                   >
                     <title>{`Views: ${val}`}</title>
-                  </circle>
-                );
-              })}
-
-              {/* Leads Dots */}
-              {chartLeadsData.map((val, index) => {
-                const x = padding + (index * (width - padding * 2)) / (chartLeadsData.length - 1);
-                const y = height - padding - (val * (height - padding * 2)) / maxChartValue;
-                return (
-                  <circle
-                    key={index}
-                    cx={x}
-                    cy={y}
-                    r="4"
-                    className="fill-white stroke-amber-500 stroke-2 hover:scale-125 transition-transform cursor-pointer"
-                  >
-                    <title>{`Leads: ${val}`}</title>
                   </circle>
                 );
               })}

@@ -148,6 +148,14 @@ export interface Invoice {
   createdAt?: string;
 }
 
+export interface Campus {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  isVisible: boolean;
+}
+
 export const CAMPUSES = [
   { id: 'ub', name: 'Universitas Brawijaya (UB)', field: 'distanceToUB' },
   { id: 'um', name: 'Universitas Negeri Malang (UM)', field: 'distanceToUM' },
