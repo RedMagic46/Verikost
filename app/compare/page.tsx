@@ -6,7 +6,7 @@ import { Compass, Trash2, Shield, Heart, Star, Check, X, AlertCircle } from 'luc
 import Link from 'next/link';
 
 export default function CompareKosts() {
-  const { compareList, kosts, toggleCompare, favorites, toggleFavorite, currentUser, showToast } = useApp();
+  const { compareList, kosts, toggleCompare, favorites, toggleFavorite, currentUser, showToast, campuses, getKostDistance } = useApp();
 
   
   const comparedKosts = kosts.filter((k) => {
@@ -207,37 +207,20 @@ export default function CompareKosts() {
                 </tr>
 
                 
-                <tr>
-                  <td className="p-4 font-bold text-slate-800 dark:text-slate-200 bg-slate-50/30">Jarak ke UB</td>
-                  {comparedKosts.map((kost) => (
-                    <td key={kost.id} className="p-4 border-l border-border font-medium text-slate-700 dark:text-slate-300">
-                      {kost.distanceToUB} km
-                    </td>
-                  ))}
-                  {comparedKosts.length < 3 && <td className="p-4 border-l border-border bg-slate-50/20"></td>}
-                </tr>
-
-                
-                <tr>
-                  <td className="p-4 font-bold text-slate-800 dark:text-slate-200 bg-slate-50/30">Jarak ke UM</td>
-                  {comparedKosts.map((kost) => (
-                    <td key={kost.id} className="p-4 border-l border-border font-medium text-slate-700 dark:text-slate-300">
-                      {kost.distanceToUM} km
-                    </td>
-                  ))}
-                  {comparedKosts.length < 3 && <td className="p-4 border-l border-border bg-slate-50/20"></td>}
-                </tr>
-
-                
-                <tr>
-                  <td className="p-4 font-bold text-slate-800 dark:text-slate-200 bg-slate-50/30">Jarak ke UMM</td>
-                  {comparedKosts.map((kost) => (
-                    <td key={kost.id} className="p-4 border-l border-border font-medium text-slate-700 dark:text-slate-300">
-                      {kost.distanceToUMM} km
-                    </td>
-                  ))}
-                  {comparedKosts.length < 3 && <td className="p-4 border-l border-border bg-slate-50/20"></td>}
-                </tr>
+                {campuses.filter(c => c.isVisible).map((campus) => (
+                  <tr key={campus.id}>
+                    <td className="p-4 font-bold text-slate-800 dark:text-slate-200 bg-slate-50/30">Jarak ke {campus.name}</td>
+                    {comparedKosts.map((kost) => {
+                      const dist = getKostDistance(kost, campus.id);
+                      return (
+                        <td key={kost.id} className="p-4 border-l border-border font-medium text-slate-700 dark:text-slate-300">
+                          {dist > 0 ? `${dist} km` : '-'}
+                        </td>
+                      );
+                    })}
+                    {comparedKosts.length < 3 && <td className="p-4 border-l border-border bg-slate-50/20"></td>}
+                  </tr>
+                ))}
 
                 
                 <tr>

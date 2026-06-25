@@ -31,13 +31,18 @@ import {
   Megaphone,
   DollarSign,
   Percent,
-  Clock
+  Clock,
+  Compass,
+  MapPin
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { User, Kost, KostVerification } from '@/app/types';
+import { User, Kost, KostVerification, Campus } from '@/app/types';
 import { supabase } from '@/app/lib/supabase';
 import ConfirmModal from '@/components/ConfirmModal';
+import dynamic from 'next/dynamic';
+
+const AdminMapSelector = dynamic(() => import('@/components/AdminMapSelector'), { ssr: false });
 
 export default function AdminDashboardPage() {
   return (
@@ -276,6 +281,7 @@ function AdminDashboardContent() {
     kostVerifications,
     approveOwner,
     approveKost,
+    adminVerifyKostDirectly,
     scheduleKostVerification,
     moderateReview,
     updateUserRole,
@@ -296,7 +302,9 @@ function AdminDashboardContent() {
     adminAdjustReferral,
     executeMockOwnerPayment,
     adminAdjustOwnerSubscription,
-    adminAdjustKostPromotion
+    adminAdjustKostPromotion,
+    campuses,
+    updateCampuses
   } = useApp();
 
   const [confirmConfig, setConfirmConfig] = useState<{
@@ -316,6 +324,10 @@ function AdminDashboardContent() {
 
   const [approvingVerif, setApprovingVerif] = useState<KostVerification | null>(null);
   const [expirationDate, setExpirationDate] = useState('');
+
+  const [directVerifyKost, setDirectVerifyKost] = useState<Kost | null>(null);
+  const [directVerifyExpirationDate, setDirectVerifyExpirationDate] = useState('');
+  const [directVerifyBadge, setDirectVerifyBadge] = useState<'verified' | 'highly-trusted'>('verified');
 
   const handleConfirmAction = (config: Omit<NonNullable<typeof confirmConfig>, 'isOpen'>) => {
     setConfirmConfig({ ...config, isOpen: true });
@@ -351,6 +363,81 @@ function AdminDashboardContent() {
     'https://api.dicebear.com/7.x/avataaars/svg?seed=Endang&eyebrows=default&mouth=smile',
     'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&eyebrows=default&mouth=smile'
   ];
+
+  // Campus Management states
+  const [isCampusModalOpen, setIsCampusModalOpen] = useState(false);
+  const [editingCampus, setEditingCampus] = useState<Campus | null>(null);
+  const [campusName, setCampusName] = useState('');
+  const [campusLat, setCampusLat] = useState<number>(-7.9525);
+  const [campusLng, setCampusLng] = useState<number>(112.6144);
+  const [campusVisible, setCampusVisible] = useState(true);
+  const [campusSearch, setCampusSearch] = useState('');
+
+  const filteredCampuses = useMemo(() => {
+    if (!campusSearch.trim()) return campuses;
+    return campuses.filter(c => c.name.toLowerCase().includes(campusSearch.toLowerCase()));
+  }, [campuses, campusSearch]);
+
+  const handleSaveCampus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!campusName.trim()) {
+      showToast('Nama kampus wajib diisi', 'error');
+      return;
+    }
+
+    const newCampus: Campus = {
+      id: editingCampus ? editingCampus.id : `campus-${Date.now()}`,
+      name: campusName,
+      latitude: campusLat,
+      longitude: campusLng,
+      isVisible: campusVisible
+    };
+
+    let updatedCampuses: Campus[];
+    if (editingCampus) {
+      updatedCampuses = campuses.map(c => c.id === editingCampus.id ? newCampus : c);
+    } else {
+      updatedCampuses = [...campuses, newCampus];
+    }
+
+    await updateCampuses(updatedCampuses);
+    showToast(editingCampus ? 'Kampus berhasil diperbarui!' : 'Kampus baru berhasil ditambahkan!', 'success');
+    setIsCampusModalOpen(false);
+    setEditingCampus(null);
+    setCampusName('');
+    setCampusLat(-7.9525);
+    setCampusLng(112.6144);
+    setCampusVisible(true);
+  };
+
+  const handleEditCampus = (campus: Campus) => {
+    setEditingCampus(campus);
+    setCampusName(campus.name);
+    setCampusLat(campus.latitude);
+    setCampusLng(campus.longitude);
+    setCampusVisible(campus.isVisible);
+    setIsCampusModalOpen(true);
+  };
+
+  const handleDeleteCampus = (campusId: string, campusName: string) => {
+    handleConfirmAction({
+      title: 'Hapus Kampus?',
+      description: `Apakah Anda yakin ingin menghapus kampus "${campusName}"? Seluruh data jarak kost ke kampus ini akan dihitung dinamis menggunakan koordinat default jika tersedia.`,
+      confirmText: 'Ya, Hapus',
+      variant: 'danger',
+      onConfirm: async () => {
+        const updatedCampuses = campuses.filter(c => c.id !== campusId);
+        await updateCampuses(updatedCampuses);
+        showToast('Kampus berhasil dihapus!', 'success');
+      }
+    });
+  };
+
+  const handleToggleCampusVisibility = async (campus: Campus) => {
+    const updatedCampuses = campuses.map(c => c.id === campus.id ? { ...c, isVisible: !c.isVisible } : c);
+    await updateCampuses(updatedCampuses);
+    showToast(`Visibilitas kampus ${campus.name} berhasil diubah!`, 'success');
+  };
 
   const handleOpenEditProfile = () => {
     if (!currentUser) return;
@@ -503,7 +590,7 @@ function AdminDashboardContent() {
     }
   };
 
-  const [activeTab, setActiveTabState] = useState<'analytics' | 'owners-queue' | 'kosts-queue' | 'users' | 'kosts-list' | 'reviews' | 'finance' | 'promotions'>('analytics');
+  const [activeTab, setActiveTabState] = useState<'analytics' | 'owners-queue' | 'kosts-queue' | 'users' | 'kosts-list' | 'reviews' | 'finance' | 'promotions' | 'campuses'>('analytics');
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -514,7 +601,7 @@ function AdminDashboardContent() {
     }
   }, [currentUser?.id]);
 
-  const setActiveTab = (tab: 'analytics' | 'owners-queue' | 'kosts-queue' | 'users' | 'kosts-list' | 'reviews' | 'finance' | 'promotions') => {
+  const setActiveTab = (tab: 'analytics' | 'owners-queue' | 'kosts-queue' | 'users' | 'kosts-list' | 'reviews' | 'finance' | 'promotions' | 'campuses') => {
     setActiveTabState(tab);
     if (currentUser?.id) {
       localStorage.setItem(`vk_admin_tab_${currentUser.id}`, tab);
@@ -616,9 +703,6 @@ function AdminDashboardContent() {
   const [searchReviews, setSearchReviews] = useState('');
 
   // Finance & Platform Settings Tab States
-  const [commissionType, setCommissionType] = useState<'flat' | 'percentage'>('percentage');
-  const [commissionValue, setCommissionValue] = useState(5);
-  const [commissionChargedTo, setCommissionChargedTo] = useState<'student' | 'owner'>('student');
   const [smallReferralReward, setSmallReferralReward] = useState('');
   const [transactionReferralReward, setTransactionReferralReward] = useState('');
   const [ownerSubscriptionRate, setOwnerSubscriptionRate] = useState(3000);
@@ -626,9 +710,6 @@ function AdminDashboardContent() {
 
   useEffect(() => {
     if (platformSettings) {
-      setCommissionType(platformSettings.commissionType || 'percentage');
-      setCommissionValue(platformSettings.commissionValue || 5);
-      setCommissionChargedTo(platformSettings.commissionChargedTo || 'student');
       setSmallReferralReward(platformSettings.smallReferralReward || '');
       setTransactionReferralReward(platformSettings.transactionReferralReward || '');
       setOwnerSubscriptionRate(platformSettings.ownerSubscriptionRate || 3000);
@@ -640,9 +721,9 @@ function AdminDashboardContent() {
     e.preventDefault();
     try {
       await updatePlatformSettings({
-        commissionType,
-        commissionValue,
-        commissionChargedTo,
+        commissionType: 'flat',
+        commissionValue: 0,
+        commissionChargedTo: 'student',
         smallReferralReward,
         transactionReferralReward,
         ownerSubscriptionRate,
@@ -819,8 +900,9 @@ function AdminDashboardContent() {
       icon: <MessageSquare className="h-4.5 w-4.5" />,
       badge: pendingReviewsCount
     },
-    { id: 'finance', name: 'Keuangan & Komisi', icon: <Coins className="h-4.5 w-4.5" /> },
-    { id: 'promotions', name: 'Promosi & Kemitraan', icon: <Megaphone className="h-4.5 w-4.5" /> }
+    { id: 'finance', name: 'Keuangan', icon: <Coins className="h-4.5 w-4.5" /> },
+    { id: 'promotions', name: 'Promosi & Kemitraan', icon: <Megaphone className="h-4.5 w-4.5" /> },
+    { id: 'campuses', name: 'Manajemen Kampus', icon: <Compass className="h-4.5 w-4.5" /> }
   ];
 
   return (
@@ -1837,20 +1919,28 @@ function AdminDashboardContent() {
                                 </div>
                                 <div>
                                   <span className="text-slate-400 block text-[9px] uppercase font-bold">Jarak Ke Kampus UB</span>
-                                  <span className="text-slate-700 dark:text-slate-200">{kost.distanceToUB} km</span>
+                                  <span className="text-slate-700 dark:text-slate-200">{kost.distanceToUB > 0 ? `${kost.distanceToUB} km` : '-'}</span>
                                 </div>
                               </div>
                             </div>
 
                             <div className="bg-slate-50 dark:bg-slate-800/40 px-5 py-3 border-t border-border/50 flex justify-between items-center">
-                              <Link
-                                href={`/kost/${kost.id}`}
-                                className="text-[11px] font-bold text-primary hover:underline"
-                                target="_blank"
-                              >
-                                Lihat Halaman Kost →
-                              </Link>
-                              
+                              <div>
+                                {kost.verifiedStatus === 'none' && (
+                                  <button
+                                    onClick={() => {
+                                      setDirectVerifyKost(kost);
+                                      setDirectVerifyExpirationDate('');
+                                      setDirectVerifyBadge('verified');
+                                    }}
+                                    className="rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold py-1.5 px-3 transition-colors flex items-center gap-1 cursor-pointer border-0 shadow-sm hover:brightness-110"
+                                  >
+                                    <ShieldCheck className="h-3.5 w-3.5" />
+                                    <span>Verifikasi Langsung</span>
+                                  </button>
+                                )}
+                              </div>
+
                               <button
                                 onClick={() => {
                                   handleConfirmAction({
@@ -1884,17 +1974,7 @@ function AdminDashboardContent() {
           {activeTab === 'finance' && (
             <div className="space-y-8 animate-in fade-in duration-200">
               {/* Financial Metrics Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white dark:bg-slate-900 border border-border p-5 rounded-3xl shadow-sm flex flex-col justify-between h-32">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Komisi Platform (DP)</span>
-                  <div className="mt-2">
-                    <p className="text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-900/30 inline-block">Paid Commission</p>
-                    <h3 className="text-xl font-black text-slate-900 dark:text-white mt-1">
-                      Rp {bookingPayments.filter(p => p.status === 'paid').reduce((acc, p) => acc + (p.commissionAmount || 0), 0).toLocaleString('id-ID')}
-                    </h3>
-                  </div>
-                </div>
-                
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white dark:bg-slate-900 border border-border p-5 rounded-3xl shadow-sm flex flex-col justify-between h-32">
                   <span className="text-[10px] text-slate-400 font-bold uppercase block">Total DP Booking Lancar</span>
                   <div className="mt-2">
@@ -1920,59 +2000,15 @@ function AdminDashboardContent() {
                   <div className="mt-2">
                     <p className="text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-900/30 inline-block">Total Net Income</p>
                     <h3 className="text-xl font-black text-slate-900 dark:text-white mt-1">
-                      Rp {(
-                        bookingPayments.filter(p => p.status === 'paid').reduce((acc, p) => acc + (p.commissionAmount || 0), 0) +
-                        ownerPayments.filter(p => p.status === 'paid').reduce((acc, p) => acc + p.amount, 0)
-                      ).toLocaleString('id-ID')}
+                      Rp {ownerPayments.filter(p => p.status === 'paid').reduce((acc, p) => acc + p.amount, 0).toLocaleString('id-ID')}
                     </h3>
                   </div>
                 </div>
               </div>
 
-              {/* Platform settings configurations */}
               <div className="bg-white dark:bg-slate-900 border border-border rounded-3xl p-6 shadow-sm space-y-4">
                 <h4 className="font-extrabold text-slate-800 dark:text-white text-sm pb-2 border-b border-border/40">Pengaturan Biaya & Program Rujukan</h4>
                 <form onSubmit={handleSavePlatformSettings} className="space-y-4 text-xs font-semibold">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-slate-700 dark:text-slate-300">Tipe Komisi Platform</label>
-                      <CustomSelect
-                        options={[
-                          { value: 'percentage', label: 'Persentase (%)' },
-                          { value: 'flat', label: 'Nominal Flat (Rp)' }
-                        ]}
-                        value={commissionType}
-                        onChange={(val) => setCommissionType(val as any)}
-                        className="w-full text-left"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1.5">
-                      <label className="text-slate-700 dark:text-slate-300">Nilai Komisi</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={commissionValue}
-                        onChange={(e) => setCommissionValue(Number(e.target.value))}
-                        className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:border-primary text-slate-800 dark:text-white"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-slate-700 dark:text-slate-300">Pembebanan Komisi</label>
-                      <CustomSelect
-                        options={[
-                          { value: 'student', label: 'Dikenakan ke Mahasiswa (Surcharge)' },
-                          { value: 'owner', label: 'Dipotong dari Owner (Deduction)' }
-                        ]}
-                        value={commissionChargedTo}
-                        onChange={(val) => setCommissionChargedTo(val as any)}
-                        className="w-full text-left"
-                      />
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-slate-700 dark:text-slate-300">Voucher Referral Tier 1 (Pendaftaran)</label>
@@ -2046,7 +2082,6 @@ function AdminDashboardContent() {
                           <th className="px-4 py-3">Siswa (Pembayar)</th>
                           <th className="px-4 py-3">Properti Kost</th>
                           <th className="px-4 py-3">Nilai DP</th>
-                          <th className="px-4 py-3">Komisi Platform</th>
                           <th className="px-4 py-3">Status</th>
                           <th className="px-4 py-3">Metode</th>
                           <th className="px-4 py-3">Tanggal Pembayaran</th>
@@ -2064,7 +2099,6 @@ function AdminDashboardContent() {
                               </td>
                               <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">{kost?.name || 'Kost'}</td>
                               <td className="px-4 py-3 font-black text-slate-950 dark:text-white">Rp {p.dpAmount.toLocaleString('id-ID')}</td>
-                              <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">Rp {p.commissionAmount.toLocaleString('id-ID')}</td>
                               <td className="px-4 py-3">
                                 <span className={`inline-block rounded px-2 py-0.5 text-[9px] font-black border uppercase tracking-wider ${
                                   p.status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-slate-800 dark:text-emerald-400' :
@@ -2183,7 +2217,7 @@ function AdminDashboardContent() {
                               {owner.fullName}
                               <span className="block text-[9px] text-slate-400 font-semibold uppercase">{owner.email} • {owner.phone}</span>
                             </td>
-                            <td className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-350">{owner.kostName || '-'}</td>
+                            <td className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">{owner.kostName || '-'}</td>
                             <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-300">
                               {hasSub ? new Date(owner.subscriptionExpiresAt!).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Tidak Berlangganan'}
                             </td>
@@ -2233,11 +2267,11 @@ function AdminDashboardContent() {
                         const isPromoActive = hasPromo && new Date(kost.promotionExpiresAt!) > new Date();
                         return (
                           <tr key={kost.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors">
-                            <td className="px-4 py-3 font-bold text-slate-850 dark:text-white">
+                            <td className="px-4 py-3 font-bold text-slate-800 dark:text-white">
                               {kost.name}
                               <span className="block text-[9px] text-slate-400 font-semibold uppercase">{kost.address}</span>
                             </td>
-                            <td className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-350">{kost.ownerName}</td>
+                            <td className="px-4 py-3 font-semibold text-slate-600 dark:text-slate-400">{kost.ownerName}</td>
                             <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-300">
                               {hasPromo ? new Date(kost.promotionExpiresAt!).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Tidak Dipromosikan'}
                             </td>
@@ -2293,13 +2327,13 @@ function AdminDashboardContent() {
                           const kost = kosts.find(k => k.id === op.kostId);
                           return (
                             <tr key={op.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors">
-                              <td className="px-4 py-3 font-bold text-slate-850 dark:text-white">
+                              <td className="px-4 py-3 font-bold text-slate-800 dark:text-white">
                                 {owner?.fullName || 'Owner'}
                                 <span className="block text-[9px] text-slate-400 font-semibold uppercase">{owner?.email || ''}</span>
                               </td>
                               <td className="px-4 py-3 font-bold">
                                 <span className={`inline-block rounded px-2 py-0.5 text-[9px] font-black border uppercase tracking-wider ${
-                                  op.paymentType === 'subscription' ? 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-slate-800 dark:text-purple-400' : 'bg-blue-50 text-primary border-blue-100 dark:bg-slate-800 dark:text-blue-400'
+                                  op.paymentType === 'subscription' ? 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-slate-800 dark:text-purple-400' : 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-slate-800 dark:text-blue-400'
                                 }`}>
                                   {op.paymentType === 'subscription' ? 'Kemitraan' : 'Iklan Promosi'}
                                 </span>
@@ -2316,7 +2350,7 @@ function AdminDashboardContent() {
                                   {op.status === 'paid' ? 'Lunas' : op.status === 'expired' ? 'Expired' : 'Pending'}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 text-slate-455 font-bold">{op.expiresAt ? new Date(op.expiresAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</td>
+                              <td className="px-4 py-3 text-slate-400 font-bold">{op.expiresAt ? new Date(op.expiresAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</td>
                               <td className="px-4 py-3 text-right">
                                 {op.status !== 'paid' && (
                                   <button
@@ -2344,6 +2378,124 @@ function AdminDashboardContent() {
                     </table>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'campuses' && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 dark:text-white leading-tight">Manajemen Kampus</h3>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                    Kelola daftar kampus yang terintegrasi di platform VeriKost Malang untuk mempermudah pencarian kost mahasiswa.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingCampus(null);
+                    setCampusName('');
+                    setCampusLat(-7.9525);
+                    setCampusLng(112.6144);
+                    setCampusVisible(true);
+                    setIsCampusModalOpen(true);
+                  }}
+                  className="rounded-xl bg-primary hover:bg-blue-600 text-white text-xs font-bold shadow-md shadow-primary/20 px-5 py-2.5 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <Compass className="h-4 w-4" />
+                  <span>Tambah Kampus</span>
+                </button>
+              </div>
+
+              {/* Campus List Table Container */}
+              <div className="bg-white dark:bg-slate-900 border border-border rounded-3xl overflow-hidden shadow-sm p-5 space-y-4">
+                {/* Filters / Search */}
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                  <div className="relative w-full sm:max-w-xs">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Cari nama kampus..."
+                      value={campusSearch}
+                      onChange={(e) => setCampusSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-border/80 text-xs focus:outline-none focus:border-primary text-slate-800 dark:text-white"
+                    />
+                  </div>
+                  <div className="text-xs text-slate-400 font-bold">
+                    Total: {filteredCampuses.length} Kampus
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-border text-slate-400 font-extrabold uppercase tracking-wider">
+                        <th className="px-4 py-3">Nama Kampus</th>
+                        <th className="px-4 py-3">Koordinat Latitude</th>
+                        <th className="px-4 py-3">Koordinat Longitude</th>
+                        <th className="px-4 py-3">Visibilitas</th>
+                        <th className="px-4 py-3 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {filteredCampuses.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-8 text-center text-slate-400 font-semibold">
+                            Tidak ada data kampus ditemukan.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredCampuses.map((campus) => (
+                          <tr key={campus.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors">
+                            <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">
+                              {campus.name}
+                              <span className="block text-[9px] text-slate-400 font-semibold uppercase">ID: {campus.id}</span>
+                            </td>
+                            <td className="px-4 py-3 font-mono text-slate-600 dark:text-slate-400 font-semibold">{campus.latitude}</td>
+                            <td className="px-4 py-3 font-mono text-slate-600 dark:text-slate-400 font-semibold">{campus.longitude}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleToggleCampusVisibility(campus)}
+                                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                    campus.isVisible ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-800'
+                                  }`}
+                                >
+                                  <span
+                                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                                      campus.isVisible ? 'translate-x-4' : 'translate-x-0'
+                                    }`}
+                                  />
+                                </button>
+                                <span className={`text-[10px] font-bold ${campus.isVisible ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500'}`}>
+                                  {campus.isVisible ? 'Visible' : 'Hidden'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  onClick={() => handleEditCampus(campus)}
+                                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                  title="Edit Kampus"
+                                >
+                                  <Edit className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCampus(campus.id, campus.name)}
+                                  className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 transition-colors cursor-pointer"
+                                  title="Hapus Kampus"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -2579,6 +2731,129 @@ function AdminDashboardContent() {
         </div>
       )}
 
+      {/* Campus Create/Edit Modal */}
+      {isCampusModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-border shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-200 scrollbar-none">
+            <div className="flex justify-between items-center pb-4 border-b border-border/80">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight">
+                  {editingCampus ? 'Edit Kampus' : 'Tambah Kampus Baru'}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {editingCampus ? `Ubah informasi kampus ${editingCampus.name}` : 'Masukkan data kampus baru beserta koordinat lokasinya.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCampusModalOpen(false);
+                  setEditingCampus(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCampus} className="space-y-5 text-xs font-semibold">
+              <div className="space-y-1.5">
+                <label className="text-slate-700 dark:text-slate-300">Nama Kampus*</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Universitas Brawijaya (UB)"
+                  value={campusName}
+                  onChange={(e) => setCampusName(e.target.value)}
+                  required
+                  className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl border border-border p-3 focus:outline-none focus:border-primary text-slate-800 dark:text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-slate-700 dark:text-slate-300">Koordinat Latitude (Lintang)*</label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    placeholder="-7.9525"
+                    value={campusLat}
+                    onChange={(e) => setCampusLat(Number(e.target.value))}
+                    required
+                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl border border-border p-3 focus:outline-none focus:border-primary text-slate-800 dark:text-white"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-slate-700 dark:text-slate-300">Koordinat Longitude (Bujur)*</label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    placeholder="112.6144"
+                    value={campusLng}
+                    onChange={(e) => setCampusLng(Number(e.target.value))}
+                    required
+                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl border border-border p-3 focus:outline-none focus:border-primary text-slate-800 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Map Selector */}
+              <div className="space-y-1.5">
+                <label className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-slate-400" />
+                  <span>Pilih Lokasi di Peta</span>
+                </label>
+                <div className="w-full h-72 rounded-2xl overflow-hidden border border-border dark:border-slate-800 relative bg-slate-50 dark:bg-slate-950">
+                  <AdminMapSelector
+                    latitude={campusLat}
+                    longitude={campusLng}
+                    onChange={(lat, lng) => {
+                      setCampusLat(lat);
+                      setCampusLng(lng);
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCampusVisible(!campusVisible)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    campusVisible ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-800'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      campusVisible ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className="text-slate-700 dark:text-slate-300">Tampilkan kampus ini di pencarian & filter</span>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-border/80">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCampusModalOpen(false);
+                    setEditingCampus(null);
+                  }}
+                  className="px-5 py-3 rounded-xl border border-border hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-350 transition-all font-bold cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-3 rounded-xl bg-primary hover:bg-blue-600 text-white font-bold transition-all shadow-md shadow-primary/20 cursor-pointer"
+                >
+                  Simpan Kampus
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       
       {isEditProfileOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -2676,7 +2951,7 @@ function AdminDashboardContent() {
                     type="email"
                     value={currentUser?.email || ''}
                     disabled
-                    className="w-full bg-slate-100 dark:bg-slate-800/40 rounded-xl border border-border/60 p-3 text-slate-455 cursor-not-allowed"
+                    className="w-full bg-slate-100 dark:bg-slate-800/40 rounded-xl border border-border/60 p-3 text-slate-400 cursor-not-allowed"
                   />
                 </div>
 
@@ -2698,7 +2973,7 @@ function AdminDashboardContent() {
                     placeholder="Masukkan kata sandi baru (min. 6 karakter)..."
                     value={profilePassword}
                     onChange={(e) => setProfilePassword(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl border border-border p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-805 dark:text-white placeholder-slate-400"
+                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl border border-border p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white placeholder-slate-400"
                   />
                 </div>
 
@@ -2739,16 +3014,16 @@ function AdminDashboardContent() {
             <p className="text-[10px] text-slate-400 leading-normal font-semibold">Tentukan tanggal kedaluwarsa langganan kemitraan untuk owner <strong>{adjustingOwner.fullName}</strong>. Kosongkan tanggal untuk membatalkan langganan.</p>
             <form onSubmit={handleAdjustOwnerSubscription} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-slate-705 dark:text-slate-350">Tanggal Kedaluwarsa Langganan</label>
+                <label className="text-slate-700 dark:text-slate-400">Tanggal Kedaluwarsa Langganan</label>
                 <input
                   type="date"
                   value={newSubExpiry}
                   onChange={(e) => setNewSubExpiry(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:border-primary text-slate-850 dark:text-white font-extrabold"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:border-primary text-slate-800 dark:text-white font-extrabold"
                 />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setAdjustingOwner(null)} className="flex-1 py-3 border border-border rounded-xl text-slate-705 dark:text-slate-202 hover:bg-slate-55 cursor-pointer">Batal</button>
+                <button type="button" onClick={() => setAdjustingOwner(null)} className="flex-1 py-3 border border-border rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">Batal</button>
                 <button type="submit" className="flex-1 py-3 bg-primary text-white rounded-xl shadow-md cursor-pointer">Simpan Perubahan</button>
               </div>
             </form>
@@ -2768,16 +3043,16 @@ function AdminDashboardContent() {
             <p className="text-[10px] text-slate-400 leading-normal font-semibold">Tentukan tanggal kedaluwarsa promosi iklan organik untuk kost <strong>{adjustingKost.name}</strong>. Kosongkan tanggal untuk membatalkan promosi.</p>
             <form onSubmit={handleAdjustKostPromotion} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-slate-705 dark:text-slate-350">Tanggal Kedaluwarsa Promosi</label>
+                <label className="text-slate-700 dark:text-slate-400">Tanggal Kedaluwarsa Promosi</label>
                 <input
                   type="date"
                   value={newPromoExpiry}
                   onChange={(e) => setNewPromoExpiry(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:border-primary text-slate-850 dark:text-white font-extrabold"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:border-primary text-slate-800 dark:text-white font-extrabold"
                 />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setAdjustingKost(null)} className="flex-1 py-3 border border-border rounded-xl text-slate-705 dark:text-slate-202 hover:bg-slate-55 cursor-pointer">Batal</button>
+                <button type="button" onClick={() => setAdjustingKost(null)} className="flex-1 py-3 border border-border rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">Batal</button>
                 <button type="submit" className="flex-1 py-3 bg-primary text-white rounded-xl shadow-md cursor-pointer">Simpan Perubahan</button>
               </div>
             </form>
@@ -2797,7 +3072,7 @@ function AdminDashboardContent() {
             <p className="text-[10px] text-slate-400 leading-normal font-semibold">Sesuaikan status reward untuk rujukan dari <strong>{users.find(u => u.id === adjustingReferral.referrerId)?.fullName || 'Inviter'}</strong> kepada <strong>{adjustingReferral.referredName || 'Invitee'}</strong>.</p>
             <form onSubmit={handleSaveReferralAdjustment} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-slate-705 dark:text-slate-350">Status Reward Registrasi (Tier 1)</label>
+                <label className="text-slate-700 dark:text-slate-400">Status Reward Registrasi (Tier 1)</label>
                 <CustomSelect
                   options={[
                     { value: 'pending', label: 'Belum Diklaim / Pending' },
@@ -2809,7 +3084,7 @@ function AdminDashboardContent() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-slate-705 dark:text-slate-350">Status Reward Transaksi (Tier 2)</label>
+                <label className="text-slate-700 dark:text-slate-400">Status Reward Transaksi (Tier 2)</label>
                 <CustomSelect
                   options={[
                     { value: 'pending', label: 'Belum Memenuhi Syarat (Pending)' },
@@ -2822,7 +3097,7 @@ function AdminDashboardContent() {
                 />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setAdjustingReferral(null)} className="flex-1 py-3 border border-border rounded-xl text-slate-705 dark:text-slate-202 hover:bg-slate-55 cursor-pointer">Batal</button>
+                <button type="button" onClick={() => setAdjustingReferral(null)} className="flex-1 py-3 border border-border rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer">Batal</button>
                 <button type="submit" className="flex-1 py-3 bg-primary text-white rounded-xl shadow-md cursor-pointer">Simpan Perubahan</button>
               </div>
             </form>
@@ -2842,7 +3117,7 @@ function AdminDashboardContent() {
               <button
                 type="button"
                 onClick={() => setSchedulingVerif(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-205 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -2861,7 +3136,7 @@ function AdminDashboardContent() {
               className="space-y-4"
             >
               <div className="space-y-1.5">
-                <label className="text-slate-707 dark:text-slate-350">Tanggal Rencana Kunjungan</label>
+                <label className="text-slate-700 dark:text-slate-400">Tanggal Rencana Kunjungan</label>
                 <input
                   type="date"
                   value={visitDate}
@@ -2873,7 +3148,7 @@ function AdminDashboardContent() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-707 dark:text-slate-350">Biaya Survey (Rp)</label>
+                <label className="text-slate-700 dark:text-slate-400">Biaya Survey (Rp)</label>
                 <input
                   type="number"
                   min={0}
@@ -2889,7 +3164,7 @@ function AdminDashboardContent() {
                 <button
                   type="button"
                   onClick={() => setSchedulingVerif(null)}
-                  className="flex-1 py-3 border border-border rounded-xl text-xs font-bold text-slate-707 dark:text-slate-205 hover:bg-slate-100 cursor-pointer"
+                  className="flex-1 py-3 border border-border rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 cursor-pointer"
                 >
                   Batal
                 </button>
@@ -2917,7 +3192,7 @@ function AdminDashboardContent() {
               <button
                 type="button"
                 onClick={() => setApprovingVerif(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-205 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -2937,7 +3212,7 @@ function AdminDashboardContent() {
               className="space-y-4"
             >
               <div className="space-y-1.5">
-                <label className="text-slate-707 dark:text-slate-350">Tanggal Kadaluarsa Verifikasi</label>
+                <label className="text-slate-700 dark:text-slate-400">Tanggal Kadaluarsa Verifikasi</label>
                 <input
                   type="date"
                   value={expirationDate}
@@ -2967,6 +3242,99 @@ function AdminDashboardContent() {
                   className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 cursor-pointer"
                 >
                   Setujui Verifikasi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Verification Modal */}
+      {directVerifyKost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-border shadow-2xl w-full max-w-md overflow-hidden flex flex-col p-6 animate-in zoom-in-95 duration-200 gap-5 text-xs font-semibold text-left">
+            <div className="flex justify-between items-center pb-3 border-b border-border/60">
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                Verifikasi Properti Langsung
+              </h3>
+              <button
+                type="button"
+                onClick={() => setDirectVerifyKost(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!directVerifyExpirationDate) {
+                  showToast('Tanggal kadaluarsa wajib diisi.', 'error');
+                  return;
+                }
+                await adminVerifyKostDirectly(directVerifyKost.id, directVerifyBadge, directVerifyExpirationDate);
+                setDirectVerifyKost(null);
+              }}
+              className="space-y-4"
+            >
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-border/60 rounded-2xl flex items-center gap-3">
+                <img
+                  src={directVerifyKost.images[0] || 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=300&q=80'}
+                  alt={directVerifyKost.name}
+                  className="h-10 w-14 rounded-lg object-cover border border-border shrink-0"
+                />
+                <div className="min-w-0">
+                  <h4 className="font-extrabold text-slate-800 dark:text-slate-200 truncate">{directVerifyKost.name}</h4>
+                  <p className="text-[10px] text-slate-400 truncate">{directVerifyKost.address}</p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-slate-700 dark:text-slate-400">Tipe Badge Verifikasi</label>
+                <CustomSelect
+                  options={[
+                    { value: 'verified', label: 'Terverifikasi (Verified)' },
+                    { value: 'highly-trusted', label: 'Highly Trusted (Sangat Terpercaya)' }
+                  ]}
+                  value={directVerifyBadge}
+                  onChange={(val) => setDirectVerifyBadge(val as any)}
+                  className="w-full text-left font-bold"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-slate-700 dark:text-slate-400">Tanggal Kadaluarsa Verifikasi</label>
+                <input
+                  type="date"
+                  value={directVerifyExpirationDate}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setDirectVerifyExpirationDate(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white font-extrabold"
+                  required
+                />
+              </div>
+
+              <div className="p-3.5 bg-emerald-50 dark:bg-emerald-955/20 text-emerald-700 dark:text-emerald-400 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
+                <p className="text-[10px] leading-relaxed font-bold">
+                  *Verifikasi langsung akan segera mempublikasikan status verifikasi kost di website tanpa proses antrean atau pembayaran biaya survey oleh pemilik.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDirectVerifyKost(null)}
+                  className="flex-1 py-3 border border-border rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 cursor-pointer"
+                >
+                  Verifikasi Properti
                 </button>
               </div>
             </form>

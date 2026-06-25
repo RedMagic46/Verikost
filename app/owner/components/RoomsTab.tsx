@@ -185,10 +185,10 @@ export default function RoomsTab({
 
   // Color mappings for room status
   const statusConfig = {
-    available: { bg: 'bg-emerald-50 dark:bg-emerald-950/20', border: 'border-emerald-200 dark:border-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-450', dot: 'bg-emerald-500', label: 'Kosong' },
-    occupied: { bg: 'bg-blue-50 dark:bg-blue-950/20', border: 'border-blue-200 dark:border-blue-900/40', text: 'text-blue-700 dark:text-blue-450', dot: 'bg-blue-500', label: 'Ditempati' },
-    booked: { bg: 'bg-amber-50 dark:bg-amber-950/20', border: 'border-amber-200 dark:border-amber-900/40', text: 'text-amber-700 dark:text-amber-450', dot: 'bg-amber-500', label: 'Dibooking' },
-    maintenance: { bg: 'bg-rose-50 dark:bg-rose-950/20', border: 'border-rose-200 dark:border-rose-900/40', text: 'text-rose-700 dark:text-rose-450', dot: 'bg-rose-500', label: 'Perbaikan' }
+    available: { bg: 'bg-emerald-50 dark:bg-emerald-950/20', border: 'border-emerald-200 dark:border-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500', label: 'Kosong' },
+    occupied: { bg: 'bg-blue-50 dark:bg-blue-950/20', border: 'border-blue-200 dark:border-blue-900/40', text: 'text-blue-700 dark:text-blue-400', dot: 'bg-blue-500', label: 'Ditempati' },
+    booked: { bg: 'bg-amber-50 dark:bg-amber-950/20', border: 'border-amber-200 dark:border-amber-900/40', text: 'text-amber-700 dark:text-amber-400', dot: 'bg-amber-500', label: 'Dibooking' },
+    maintenance: { bg: 'bg-rose-50 dark:bg-rose-950/20', border: 'border-rose-200 dark:border-rose-900/40', text: 'text-rose-700 dark:text-rose-400', dot: 'bg-rose-500', label: 'Perbaikan' }
   };
 
   return (
@@ -230,7 +230,7 @@ export default function RoomsTab({
 
       {activeKosts.length === 0 ? (
         <div className="p-12 text-center bg-white dark:bg-slate-900 border border-border rounded-3xl text-slate-400 font-semibold flex flex-col items-center justify-center">
-          <Layers className="h-12 w-12 text-slate-350 dark:text-slate-700 mb-3" />
+          <Layers className="h-12 w-12 text-slate-400 dark:text-slate-700 mb-3" />
           <p>Anda belum memiliki properti kost aktif. Harap daftarkan properti terlebih dahulu di tab 'Properti Saya'.</p>
         </div>
       ) : (
@@ -248,7 +248,7 @@ export default function RoomsTab({
                   className={`px-3 py-2 border rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
                     isBulkMode 
                       ? 'bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-950/20 dark:border-indigo-900/50' 
-                      : 'bg-slate-50 border-border/80 text-slate-650 hover:bg-slate-100'
+                      : 'bg-slate-50 dark:bg-slate-800 border-border/80 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }`}
                 >
                   <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -292,8 +292,8 @@ export default function RoomsTab({
 
           {/* Rooms Visual Grid */}
           {kostRooms.length === 0 ? (
-            <div className="p-12 text-center bg-white dark:bg-slate-900 border border-border rounded-3xl text-sm text-slate-450 font-semibold flex flex-col items-center justify-center">
-              <Layers className="h-10 w-10 text-slate-350 dark:text-slate-700 mb-3" />
+            <div className="p-12 text-center bg-white dark:bg-slate-900 border border-border rounded-3xl text-sm text-slate-400 font-semibold flex flex-col items-center justify-center">
+              <Layers className="h-10 w-10 text-slate-400 dark:text-slate-700 mb-3" />
               <p>Belum ada kamar terdaftar untuk kost ini.</p>
               <button
                 onClick={handleOpenAddModal}
@@ -324,7 +324,7 @@ export default function RoomsTab({
                     
                     {/* Bulk checkbox overlay */}
                     {isBulkMode && (
-                      <div className="absolute top-2.5 right-2.5 h-4.5 w-4.5 rounded border border-border bg-white dark:bg-slate-850 flex items-center justify-center">
+                      <div className="absolute top-2.5 right-2.5 h-4.5 w-4.5 rounded border border-border bg-white dark:bg-slate-800 flex items-center justify-center">
                         {isSelected && <span className="h-2.5 w-2.5 rounded bg-indigo-500"></span>}
                       </div>
                     )}

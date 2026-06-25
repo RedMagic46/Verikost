@@ -285,7 +285,7 @@ function OwnerDashboardContent() {
                 <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight">Pengajuan Verifikasi Akun Owner</h2>
                 
                 {myVerification?.status === 'rejected' ? (
-                  <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200/50 rounded-xl p-3 text-xs text-rose-600 dark:text-rose-450 font-bold mt-2">
+                  <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200/50 rounded-xl p-3 text-xs text-rose-600 dark:text-rose-400 font-bold mt-2">
                     <span>Maaf, pengajuan dokumen legalitas dan bukti kepemilikan Anda ditolak oleh admin. Periksa kembali keabsahan sertifikat dan kelayakan properti Anda.</span>
                   </div>
                 ) : (
@@ -327,7 +327,6 @@ function OwnerDashboardContent() {
                   myRooms={myRooms} 
                   myTenants={myTenants} 
                   myInvoices={myInvoices} 
-                  myInquiries={myInquiries}
                   setActiveTab={setActiveTab}
                 />
               )}

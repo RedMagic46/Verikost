@@ -57,13 +57,135 @@ interface PaymentModalProps {
     kostName?: string;
   };
   onClose: () => void;
-  onPay: (invoiceId: string, method: string) => Promise<void>;
+  onPay: (invoiceId: string, paymentMethod: string, voucherCode?: string, discountAmount?: number) => Promise<void>;
 }
 
 function PaymentModal({ invoice, onClose, onPay }: PaymentModalProps) {
+  const { currentUser, referrals, platformSettings, showToast } = useApp();
   const [step, setStep] = useState<'select' | 'detail' | 'success'>('select');
   const [selectedMethod, setSelectedMethod] = useState('');
   const [processing, setProcessing] = useState(false);
+
+  // Voucher states
+  const [voucherCode, setVoucherCode] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState<{ code: string; amount: number } | null>(null);
+  const [usedVouchers, setUsedVouchers] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('used_referral_vouchers');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
+  const parseVoucherAmount = (rewardText: string) => {
+    if (!rewardText) return 0;
+    const cleanText = rewardText.replace(/\./g, '');
+    const match = cleanText.match(/\d+/);
+    return match ? parseInt(match[0], 10) : 0;
+  };
+
+  const getVoucherSuffix = (rewardText: string) => {
+    if (!rewardText) return 'DISC';
+    const cleanText = rewardText.replace(/\./g, '');
+    const match = cleanText.match(/\d+/);
+    if (match) {
+      const val = parseInt(match[0], 10);
+      if (val >= 1000) {
+        return `${Math.round(val / 1000)}K`;
+      }
+      return `${val}`;
+    }
+    return rewardText.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase();
+  };
+
+  const myVouchers = useMemo(() => {
+    if (!currentUser) return [];
+    
+    const list: { code: string; amount: number; description: string; refId: string; type: 'small' | 'transaction' }[] = [];
+    
+    referrals.forEach(ref => {
+      if (ref.referrerId === currentUser.id) {
+        if (ref.smallRewardStatus === 'claimed') {
+          const suffix = getVoucherSuffix(platformSettings.smallReferralReward);
+          const code = `VK-REF-${ref.id.substring(4, 8).toUpperCase()}-${suffix}`;
+          if (!usedVouchers.includes(code)) {
+            list.push({
+              code,
+              amount: parseVoucherAmount(platformSettings.smallReferralReward),
+              description: `Referral Registrasi: ${platformSettings.smallReferralReward}`,
+              refId: ref.id,
+              type: 'small'
+            });
+          }
+        }
+        if (ref.transactionRewardStatus === 'claimed') {
+          const suffix = getVoucherSuffix(platformSettings.transactionReferralReward);
+          const code = `VK-REF-${ref.id.substring(4, 8).toUpperCase()}-${suffix}`;
+          if (!usedVouchers.includes(code)) {
+            list.push({
+              code,
+              amount: parseVoucherAmount(platformSettings.transactionReferralReward),
+              description: `Referral Booking: ${platformSettings.transactionReferralReward}`,
+              refId: ref.id,
+              type: 'transaction'
+            });
+          }
+        }
+      }
+    });
+
+    return list;
+  }, [referrals, currentUser, platformSettings, usedVouchers]);
+
+  // Handle applying manual voucher
+  const handleApplyVoucher = () => {
+    const code = voucherCode.trim().toUpperCase();
+    if (!code) return;
+
+    // Check in user's available vouchers first
+    const found = myVouchers.find(v => v.code.toUpperCase() === code);
+    if (found) {
+      setAppliedVoucher({ code: found.code, amount: found.amount });
+      showToast(`Voucher ${found.code} berhasil diterapkan!`, 'success');
+      return;
+    }
+
+    // Check if the voucher has already been used
+    if (usedVouchers.includes(code)) {
+      showToast('Voucher ini sudah digunakan.', 'error');
+      return;
+    }
+
+    // General coupon simulation codes
+    if (code === 'VERIKOST10K') {
+      setAppliedVoucher({ code: 'VERIKOST10K', amount: 10000 });
+      showToast('Voucher VERIKOST10K berhasil diterapkan!', 'success');
+      return;
+    }
+    if (code === 'VERIKOST50K') {
+      setAppliedVoucher({ code: 'VERIKOST50K', amount: 50000 });
+      showToast('Voucher VERIKOST50K berhasil diterapkan!', 'success');
+      return;
+    }
+
+    showToast('Kode voucher tidak valid.', 'error');
+  };
+
+  // Handle clicking a voucher from the list
+  const handleSelectVoucher = (code: string) => {
+    const found = myVouchers.find(v => v.code === code);
+    if (found) {
+      setAppliedVoucher({ code: found.code, amount: found.amount });
+      setVoucherCode(found.code);
+      showToast(`Voucher ${found.code} berhasil diterapkan!`, 'success');
+    }
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherCode('');
+    showToast('Voucher dihapus.', 'info');
+  };
 
   const methods = [
     { id: 'va_bca', label: 'Bank BCA', sub: 'Virtual Account', icon: <Landmark className="h-5 w-5" />, color: 'text-blue-600' },
@@ -81,7 +203,16 @@ function PaymentModal({ invoice, onClose, onPay }: PaymentModalProps) {
   const handlePay = async () => {
     setProcessing(true);
     try {
-      await onPay(invoice.id, selectedMethod);
+      const discount = appliedVoucher ? appliedVoucher.amount : 0;
+      await onPay(invoice.id, selectedMethod, appliedVoucher?.code, discount);
+
+      // Save used voucher to localStorage
+      if (appliedVoucher) {
+        const updated = [...usedVouchers, appliedVoucher.code];
+        setUsedVouchers(updated);
+        localStorage.setItem('used_referral_vouchers', JSON.stringify(updated));
+      }
+
       setStep('success');
     } catch {
       // error handled by context
@@ -118,32 +249,117 @@ function PaymentModal({ invoice, onClose, onPay }: PaymentModalProps) {
         {/* Content */}
         <div className="p-5 space-y-4">
           {/* Amount */}
-          <div className="bg-gradient-to-br from-primary/5 to-blue-50 dark:from-primary/10 dark:to-slate-800/60 rounded-2xl p-4 text-center border border-primary/10 dark:border-primary/20">
-            <p className="text-[10px] uppercase font-bold tracking-widest text-primary/70 mb-1">Total Tagihan</p>
-            <p className="text-2xl font-black text-primary">
-              {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(invoice.amount)}
-            </p>
+          <div className="bg-gradient-to-br from-primary/5 to-blue-50 dark:from-primary/10 dark:to-slate-800/60 rounded-2xl p-4 border border-primary/10 dark:border-primary/20 space-y-2.5">
+            {appliedVoucher ? (
+              <>
+                <div className="flex justify-between items-center text-xs text-slate-500 font-semibold">
+                  <span>Biaya Sewa</span>
+                  <span>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(invoice.amount)}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs text-emerald-600 dark:text-emerald-500 font-bold">
+                  <span>Diskon Voucher ({appliedVoucher.code})</span>
+                  <span>-{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(appliedVoucher.amount)}</span>
+                </div>
+                <div className="border-t border-primary/10 pt-2.5 flex justify-between items-center">
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-primary/70">Total Bayar</span>
+                  <span className="text-2xl font-black text-primary">
+                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Math.max(0, invoice.amount - appliedVoucher.amount))}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="text-center">
+                <p className="text-[10px] uppercase font-bold tracking-widest text-primary/70 mb-1">Total Tagihan</p>
+                <p className="text-2xl font-black text-primary">
+                  {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(invoice.amount)}
+                </p>
+              </div>
+            )}
           </div>
 
           {step === 'select' && (
-            <div className="space-y-2.5">
-              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Pilih Metode Pembayaran:</p>
-              {methods.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => { setSelectedMethod(m.id); setStep('detail'); }}
-                  className="w-full flex items-center gap-3.5 p-3.5 rounded-xl border border-border/80 dark:border-slate-800 hover:border-primary/40 hover:bg-primary/[0.02] dark:hover:bg-primary/5 transition-all text-left cursor-pointer group"
-                >
-                  <div className={`h-10 w-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center ${m.color} group-hover:scale-105 transition-transform`}>
-                    {m.icon}
+            <div className="space-y-4">
+              {/* Voucher Input Section */}
+              <div className="border border-border/80 dark:border-slate-800 rounded-2xl p-4 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Gunakan Voucher Diskon:</p>
+                
+                {appliedVoucher ? (
+                  <div className="flex items-center justify-between bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-900/30 p-2.5 rounded-xl text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        Voucher {appliedVoucher.code} Aktif
+                      </span>
+                    </div>
+                    <button 
+                      onClick={handleRemoveVoucher}
+                      className="text-rose-500 hover:text-rose-700 font-bold hover:underline cursor-pointer border-0 bg-transparent text-xs"
+                    >
+                      Hapus
+                    </button>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">{m.label}</p>
-                    <p className="text-[11px] text-slate-500">{m.sub}</p>
+                ) : (
+                  <div className="flex gap-2">
+                    <input 
+                      type="text"
+                      placeholder="Masukkan kode voucher"
+                      value={voucherCode}
+                      onChange={(e) => setVoucherCode(e.target.value)}
+                      className="flex-1 bg-white dark:bg-slate-800 border border-border/80 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary text-slate-800 dark:text-white uppercase font-bold"
+                    />
+                    <button
+                      onClick={handleApplyVoucher}
+                      className="px-4 py-2 bg-primary hover:brightness-110 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer border-0"
+                    >
+                      Terapkan
+                    </button>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-primary transition-colors" />
-                </button>
-              ))}
+                )}
+
+                {/* Available Voucher List */}
+                {myVouchers.length > 0 && !appliedVoucher && (
+                  <div className="space-y-1.5 pt-1">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Voucher Anda yang tersedia:</p>
+                    <div className="max-h-24 overflow-y-auto space-y-1.5 pr-1">
+                      {myVouchers.map(v => (
+                        <button
+                          key={v.code}
+                          onClick={() => handleSelectVoucher(v.code)}
+                          className="w-full flex items-center justify-between p-2 bg-white dark:bg-slate-800 border border-border/60 hover:border-primary/30 rounded-xl text-left transition-colors cursor-pointer group text-[11px]"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="font-mono font-black text-primary uppercase block">{v.code}</span>
+                            <span className="text-[9px] text-slate-500 truncate block mt-0.5">{v.description}</span>
+                          </div>
+                          <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 rounded-lg border border-emerald-100 dark:border-emerald-900/30 ml-2">
+                            -Rp {v.amount.toLocaleString('id-ID')}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2.5">
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Pilih Metode Pembayaran:</p>
+                {methods.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => { setSelectedMethod(m.id); setStep('detail'); }}
+                    className="w-full flex items-center gap-3.5 p-3.5 rounded-xl border border-border/80 dark:border-slate-800 hover:border-primary/40 hover:bg-primary/[0.02] dark:hover:bg-primary/5 transition-all text-left cursor-pointer group"
+                  >
+                    <div className={`h-10 w-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center ${m.color} group-hover:scale-105 transition-transform`}>
+                      {m.icon}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">{m.label}</p>
+                      <p className="text-[11px] text-slate-500">{m.sub}</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-primary transition-colors" />
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

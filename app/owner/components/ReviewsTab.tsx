@@ -79,7 +79,7 @@ export default function ReviewsTab({
         className={`h-3.5 w-3.5 ${
           i < rating 
             ? 'fill-amber-400 text-amber-400' 
-            : 'text-slate-350 dark:text-slate-700'
+            : 'text-slate-300 dark:text-slate-700'
         }`} 
       />
     ));
@@ -115,7 +115,7 @@ export default function ReviewsTab({
 
       {activeKosts.length === 0 ? (
         <div className="p-12 text-center bg-white dark:bg-slate-900 border border-border rounded-3xl text-slate-400 font-semibold flex flex-col items-center justify-center">
-          <MessageSquare className="h-12 w-12 text-slate-350 dark:text-slate-700 mb-3" />
+          <MessageSquare className="h-12 w-12 text-slate-400 dark:text-slate-700 mb-3" />
           <p>Harap daftarkan properti kost terlebih dahulu untuk melihat ulasan.</p>
         </div>
       ) : (
@@ -184,7 +184,7 @@ export default function ReviewsTab({
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="text-[10px] text-slate-400 font-bold">{rev.date}</span>
                           {rev.verifiedTenant && (
-                            <span className="inline-flex items-center gap-0.5 bg-blue-50 text-blue-700 border border-blue-100 dark:bg-slate-850 dark:text-blue-400 dark:border-blue-900/30 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">
+                            <span className="inline-flex items-center gap-0.5 bg-blue-50 text-blue-700 border border-blue-100 dark:bg-slate-800 dark:text-blue-400 dark:border-blue-900/30 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">
                               <ShieldCheck className="h-2.5 w-2.5" /> Penyewa Terverifikasi
                             </span>
                           )}
@@ -203,13 +203,13 @@ export default function ReviewsTab({
                   </div>
 
                   {/* Comment Text */}
-                  <p className="text-slate-700 dark:text-slate-350 text-xs font-semibold leading-relaxed pl-1">
+                  <p className="text-slate-700 dark:text-slate-400 text-xs font-semibold leading-relaxed pl-1">
                     "{rev.comment}"
                   </p>
 
                   {/* Owner Reply Section */}
                   {rev.ownerReply ? (
-                    <div className="bg-slate-50 dark:bg-slate-850/40 p-4 rounded-2xl border border-border/60 ml-6 flex gap-3 animate-in fade-in">
+                    <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-border/60 ml-6 flex gap-3 animate-in fade-in">
                       <CornerDownRight className="h-4.5 w-4.5 text-slate-400 shrink-0 mt-0.5" />
                       <div className="space-y-1 flex-1 text-xs">
                         <div className="flex items-center justify-between">
@@ -233,13 +233,13 @@ export default function ReviewsTab({
                               rows={3}
                               value={replyInputMap[rev.id] || ''}
                               onChange={(e) => setReplyInputMap(prev => ({ ...prev, [rev.id]: e.target.value }))}
-                              className="w-full bg-white dark:bg-slate-900 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-850 dark:text-white"
+                              className="w-full bg-white dark:bg-slate-900 border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-slate-800 dark:text-white"
                             />
                             <div className="flex justify-end gap-2 text-[10px]">
                               <button
                                 type="button"
                                 onClick={() => setActiveReplyBox(null)}
-                                className="px-3 py-1.5 border border-border rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer font-bold"
+                                className="px-3 py-1.5 border border-border rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer font-bold"
                               >
                                 Batal
                               </button>
@@ -263,7 +263,7 @@ export default function ReviewsTab({
                   ) : (
                     /* Show reply box input button */
                     activeReplyBox === rev.id ? (
-                      <div className="bg-slate-50 dark:bg-slate-850/40 p-4 rounded-2xl border border-border/60 ml-6 space-y-3 animate-in slide-in-from-top-2 duration-150">
+                      <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-border/60 ml-6 space-y-3 animate-in slide-in-from-top-2 duration-150">
                         <span className="text-[10px] text-slate-500 font-extrabold uppercase block">Tulis Balasan Ulasan:</span>
                         <textarea
                           rows={3}
@@ -276,7 +276,7 @@ export default function ReviewsTab({
                           <button
                             type="button"
                             onClick={() => setActiveReplyBox(null)}
-                            className="px-3 py-1.5 border border-border rounded-lg text-slate-605 hover:bg-slate-100 cursor-pointer font-bold"
+                            className="px-3 py-1.5 border border-border rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer font-bold"
                           >
                             Batal
                           </button>

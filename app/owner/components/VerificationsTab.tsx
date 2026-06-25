@@ -80,7 +80,7 @@ export default function VerificationsTab({
 
       {activeKosts.length === 0 ? (
         <div className="p-12 text-center bg-white dark:bg-slate-900 border border-border rounded-3xl text-slate-400 font-semibold flex flex-col items-center justify-center">
-          <ShieldCheck className="h-12 w-12 text-slate-350 dark:text-slate-700 mb-3" />
+          <ShieldCheck className="h-12 w-12 text-slate-400 dark:text-slate-700 mb-3" />
           <p>Daftarkan properti kost terlebih dahulu untuk mengajukan verifikasi fisik lapangan.</p>
         </div>
       ) : (
@@ -156,7 +156,7 @@ export default function VerificationsTab({
                       </div>
                       <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold space-y-0.5">
                         <p>Jadwal Visit: <span className="font-black text-slate-800 dark:text-white">{verif.visitDate}</span></p>
-                        <p>Biaya Survey: <span className="font-black text-emerald-600 dark:text-emerald-450">Rp {verif.price?.toLocaleString('id-ID')} (LUNAS)</span></p>
+                        <p>Biaya Survey: <span className="font-black text-emerald-600 dark:text-emerald-400">Rp {verif.price?.toLocaleString('id-ID')} (LUNAS)</span></p>
                       </div>
                     </div>
                   )}
@@ -167,7 +167,7 @@ export default function VerificationsTab({
                         <ShieldCheck className="h-4 w-4" />
                         <span>Kost Terverifikasi ({kost.verifiedStatus})</span>
                       </div>
-                      <div className="text-[10px] text-emerald-600 dark:text-emerald-450 font-bold">
+                      <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
                         Berlaku hingga: {verif.expiredAt}
                       </div>
                     </div>
@@ -200,7 +200,7 @@ export default function VerificationsTab({
                         Diajukan: {verif.submittedAt}
                       </span>
                       {verif.approvedAt && (
-                        <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-450">
+                        <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                           <CheckCircle2 className="h-3 w-3" />
                           Disetujui: {verif.approvedAt}
                         </span>

@@ -16,7 +16,7 @@ export default function KostDetail() {
   const params = useParams();
   const router = useRouter();
   const { id } = params;
-  const { kosts, reviews, favorites, compareList, toggleFavorite, toggleCompare, addToRecentlyViewed, addReview, currentUser, showToast, incrementKostViews, inquiries, bookingPayments, createBookingPayment, executeMockPayment, platformSettings } = useApp();
+  const { kosts, reviews, favorites, compareList, toggleFavorite, toggleCompare, addToRecentlyViewed, addReview, currentUser, showToast, incrementKostViews, inquiries, bookingPayments, createBookingPayment, executeMockPayment, platformSettings, campuses, getKostDistance } = useApp();
 
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [activeMediaTab, setActiveMediaTab] = useState<'photos' | 'video'>('photos');
@@ -283,36 +283,50 @@ export default function KostDetail() {
                   <span>{kost.address}</span>
                 </div>
               </div>
+              {(() => {
+                const campusColorSchemes = [
+                  { bg: 'bg-blue-50/40 dark:bg-slate-950 border-blue-100 dark:border-slate-800', text: 'text-primary' },
+                  { bg: 'bg-emerald-50/40 dark:bg-slate-950 border-emerald-100 dark:border-slate-800', text: 'text-emerald-600 dark:text-emerald-400' },
+                  { bg: 'bg-purple-50/40 dark:bg-slate-950 border-purple-100 dark:border-slate-800', text: 'text-purple-600 dark:text-purple-400' },
+                  { bg: 'bg-amber-50/40 dark:bg-slate-950 border-amber-100 dark:border-slate-800', text: 'text-amber-600 dark:text-amber-400' },
+                  { bg: 'bg-rose-50/40 dark:bg-slate-950 border-rose-100 dark:border-slate-800', text: 'text-rose-600 dark:text-rose-400' },
+                ];
 
-              <div className="bg-white dark:bg-slate-900 border border-border rounded-3xl p-6 shadow-sm space-y-4">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <Compass className="h-5 w-5 text-primary" />
-                  Jarak Presisi ke Kampus Utama Malang
-                </h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Penghitungan jarak rute jalan kaki/berkendara tercepat dari gerbang kosan menuju pintu utama kampus-kampus di Malang.
-                </p>
+                const activeCampusDistances = campuses
+                  .filter(c => c.isVisible)
+                  .map(c => ({
+                    campus: c,
+                    distance: getKostDistance(kost, c.id)
+                  }))
+                  .filter(item => item.distance > 0);
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                  <div className="p-4 bg-blue-50/40 dark:bg-slate-950 rounded-2xl border border-blue-100 dark:border-slate-800 space-y-1">
-                    <p className="text-xs text-slate-500 font-semibold">Universitas Brawijaya (UB)</p>
-                    <p className="text-xl font-black text-primary leading-none">{kost.distanceToUB} km</p>
-                    <p className="text-[10px] text-muted-foreground mt-2">± {Math.round(kost.distanceToUB * 12)} menit perjalanan</p>
-                  </div>
-                  
-                  <div className="p-4 bg-emerald-50/40 dark:bg-slate-950 rounded-2xl border border-emerald-100 dark:border-slate-800 space-y-1">
-                    <p className="text-xs text-slate-500 font-semibold">Universitas Negeri Malang (UM)</p>
-                    <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 leading-none">{kost.distanceToUM} km</p>
-                    <p className="text-[10px] text-muted-foreground mt-2">± {Math.round(kost.distanceToUM * 12)} menit perjalanan</p>
-                  </div>
+                if (activeCampusDistances.length === 0) return null;
 
-                  <div className="p-4 bg-purple-50/40 dark:bg-slate-950 rounded-2xl border border-purple-100 dark:border-slate-800 space-y-1">
-                    <p className="text-xs text-slate-500 font-semibold">Univ Muhammadiyah (UMM)</p>
-                    <p className="text-xl font-black text-purple-600 dark:text-purple-400 leading-none">{kost.distanceToUMM} km</p>
-                    <p className="text-[10px] text-muted-foreground mt-2">± {Math.round(kost.distanceToUMM * 12)} menit perjalanan</p>
+                return (
+                  <div className="bg-white dark:bg-slate-900 border border-border rounded-3xl p-6 shadow-sm space-y-4">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <Compass className="h-5 w-5 text-primary" />
+                      Jarak Presisi ke Kampus Malang
+                    </h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Penghitungan jarak rute jalan kaki/berkendara tercepat dari gerbang kosan menuju pintu utama kampus-kampus di Malang yang aktif.
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2">
+                      {activeCampusDistances.map((item, idx) => {
+                        const scheme = campusColorSchemes[idx % campusColorSchemes.length];
+                        return (
+                          <div key={item.campus.id} className={`p-4 rounded-2xl border ${scheme.bg} space-y-1`}>
+                            <p className="text-xs text-slate-500 font-semibold">{item.campus.name}</p>
+                            <p className={`text-xl font-black leading-none ${scheme.text}`}>{item.distance} km</p>
+                            <p className="text-[10px] text-muted-foreground mt-2">± {Math.round(item.distance * 12)} menit perjalanan</p>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
 
               <div className="bg-white dark:bg-slate-900 border border-border rounded-3xl p-6 shadow-sm space-y-4">
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">Fasilitas Hunian</h3>
@@ -431,7 +445,7 @@ export default function KostDetail() {
                         {!bookingPayment && (
                           <div className="bg-emerald-50/40 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-900/30 p-3 rounded-2xl space-y-3">
                             <div className="space-y-1">
-                              <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-450">Pengajuan Disetujui!</p>
+                              <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">Pengajuan Disetujui!</p>
                               <p className="text-[10px] text-muted-foreground leading-relaxed">
                                 {kost.bookingDpAmount && kost.bookingDpAmount > 0 
                                   ? `Amankan kamar Anda dengan membayar Down Payment sebesar ${formatPrice(kost.bookingDpAmount)}.`
@@ -450,15 +464,13 @@ export default function KostDetail() {
                         )}
 
                         {bookingPayment && bookingPayment.status === 'pending' && (() => {
-                          const displayAmount = platformSettings.commissionChargedTo === 'student'
-                            ? bookingPayment.dpAmount + bookingPayment.commissionAmount
-                            : bookingPayment.dpAmount;
+                          const displayAmount = bookingPayment.dpAmount;
                           return (
                             <div className="bg-amber-50/40 dark:bg-amber-950/10 border border-amber-100 dark:border-amber-900/30 p-3 rounded-2xl space-y-3">
                               <div className="space-y-1">
                                 <p className="text-[10px] font-bold text-amber-700 dark:text-amber-455">Tagihan DP Aktif</p>
                                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                                  Selesaikan pembayaran sebesar **{formatPrice(displayAmount)}** {platformSettings.commissionChargedTo === 'student' && `(termasuk biaya layanan ${formatPrice(bookingPayment.commissionAmount)})`} sebelum kedaluwarsa.
+                                  Selesaikan pembayaran sebesar **{formatPrice(displayAmount)}** sebelum kedaluwarsa.
                                 </p>
                                 <p className="text-[9px] text-slate-400 font-bold block pt-1">
                                   Batas Waktu: 24 Jam sejak pengajuan.
@@ -481,7 +493,7 @@ export default function KostDetail() {
                               <span>Booking Kamar Sukses!</span>
                             </p>
                             <p className="text-[10px] text-muted-foreground leading-relaxed">
-                              DP sebesar **{formatPrice(bookingPayment.dpAmount)}** {platformSettings.commissionChargedTo === 'student' && `(ditambah biaya layanan ${formatPrice(bookingPayment.commissionAmount)})`} telah lunas dibayarkan via {bookingPayment.paymentMethod} pada {new Date(bookingPayment.paidAt || '').toLocaleDateString('id-ID')}.
+                              DP sebesar **{formatPrice(bookingPayment.dpAmount)}** telah lunas dibayarkan via {bookingPayment.paymentMethod} pada {new Date(bookingPayment.paidAt || '').toLocaleDateString('id-ID')}.
                             </p>
                           </div>
                         )}
@@ -638,10 +650,8 @@ export default function KostDetail() {
         <CheckoutModal
           isOpen={isCheckoutOpen}
           onClose={() => setIsCheckoutOpen(false)}
-          amount={platformSettings.commissionChargedTo === 'student' ? bookingPayment.dpAmount + bookingPayment.commissionAmount : bookingPayment.dpAmount}
+          amount={bookingPayment.dpAmount}
           dpAmount={bookingPayment.dpAmount}
-          commissionAmount={bookingPayment.commissionAmount}
-          commissionChargedTo={platformSettings.commissionChargedTo}
           paymentId={bookingPayment.id}
           executeMockPayment={executeMockPayment}
         />

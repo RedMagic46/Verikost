@@ -104,27 +104,10 @@ export default function CheckoutModal({
         {/* Content */}
         <div className="p-6 flex-1 space-y-6 overflow-y-auto max-h-[70vh]">
           {/* Price Tag Breakdown */}
-          {commissionAmount && commissionAmount > 0 && commissionChargedTo === 'student' ? (
-            <div className="bg-slate-50 dark:bg-slate-800/40 border border-border/80 p-5 rounded-2xl space-y-2.5">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 font-semibold">Down Payment (DP)</span>
-                <span className="font-extrabold text-slate-800 dark:text-slate-200">{formatIDR(dpAmount || 0)}</span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 font-semibold">Biaya Layanan (Platform Fee)</span>
-                <span className="font-extrabold text-slate-800 dark:text-slate-200">{formatIDR(commissionAmount)}</span>
-              </div>
-              <div className="border-t border-border/60 pt-2.5 flex justify-between items-center">
-                <span className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide">Total Tagihan</span>
-                <span className="text-lg font-black text-primary leading-none">{formatIDR((dpAmount || 0) + commissionAmount)}</span>
-              </div>
-            </div>
-          ) : (
             <div className="bg-slate-50 dark:bg-slate-800/40 border border-border/80 p-5 rounded-2xl flex justify-between items-center">
               <span className="text-xs text-slate-500 font-semibold">Total Tagihan</span>
               <span className="text-xl font-black text-primary leading-none">{formatIDR(displayAmount)}</span>
             </div>
-          )}
 
           {/* Payment Methods tabs */}
           <div className="space-y-2.5">
@@ -135,7 +118,7 @@ export default function CheckoutModal({
                 className={`p-3 border rounded-2xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
                   method === 'va'
                     ? 'border-primary bg-primary/5 text-primary shadow-sm'
-                    : 'border-border text-slate-550 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-350 dark:hover:bg-slate-800'
+                    : 'border-border text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800'
                 }`}
               >
                 <CreditCard className="h-5 w-5" />
@@ -147,7 +130,7 @@ export default function CheckoutModal({
                 className={`p-3 border rounded-2xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
                   method === 'ewallet'
                     ? 'border-primary bg-primary/5 text-primary shadow-sm'
-                    : 'border-border text-slate-550 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-350 dark:hover:bg-slate-800'
+                    : 'border-border text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800'
                 }`}
               >
                 <Wallet className="h-5 w-5" />
@@ -159,7 +142,7 @@ export default function CheckoutModal({
                 className={`p-3 border rounded-2xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
                   method === 'qris'
                     ? 'border-primary bg-primary/5 text-primary shadow-sm'
-                    : 'border-border text-slate-550 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-350 dark:hover:bg-slate-800'
+                    : 'border-border text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800'
                 }`}
               >
                 <QrCode className="h-5 w-5" />
@@ -251,7 +234,7 @@ export default function CheckoutModal({
               <div className="space-y-4 animate-in fade-in duration-200 flex flex-col items-center text-center">
                 <div className="p-4 bg-white rounded-2xl border border-border shadow-xs flex items-center justify-center h-40 w-40">
                   <div className="flex flex-col items-center text-slate-400">
-                    <QrCode className="h-16 w-16 text-slate-800 dark:text-slate-850" />
+                    <QrCode className="h-16 w-16 text-slate-800" />
                     <span className="text-[9px] font-black uppercase text-primary tracking-widest mt-2">QRIS VERIKOST</span>
                   </div>
                 </div>

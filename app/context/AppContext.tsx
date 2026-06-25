@@ -15,7 +15,8 @@ import {
   BookingPayment,
   Referral,
   PlatformSettings,
-  OwnerPayment
+  OwnerPayment,
+  Campus
 } from '../types';
 
 interface AppContextType {
@@ -36,12 +37,18 @@ interface AppContextType {
   bookingPayments: BookingPayment[];
   referrals: Referral[];
   platformSettings: PlatformSettings;
+  campuses: Campus[];
+  distanceOverrides: Record<string, Record<string, number>>;
+  updateCampuses: (newCampuses: Campus[]) => Promise<void>;
+  updateDistanceOverrides: (newOverrides: Record<string, Record<string, number>>) => Promise<void>;
+  getKostCoordinates: (kost: Kost) => [number, number];
+  getKostDistance: (kost: Kost, campusId: string) => number;
   switchRole: (role: string) => void;
   toggleFavorite: (id: string) => void;
   toggleCompare: (id: string) => void;
   addToRecentlyViewed: (id: string) => void;
   addReview: (kostId: string, userName: string, rating: number, comment: string) => Promise<void>;
-  addKost: (kost: Omit<Kost, 'id' | 'rating' | 'views' | 'ownerId' | 'ownerName' | 'ownerPhone'>) => Promise<void>;
+  addKost: (kost: Omit<Kost, 'id' | 'rating' | 'views' | 'ownerId' | 'ownerName' | 'ownerPhone'>) => Promise<string | null>;
   updateKostAvailability: (id: string, availability: 'available' | 'limited' | 'full') => Promise<void>;
   addInquiry: (kostId: string, message: string) => Promise<void>;
   updateInquiryStatus: (id: string, status: 'approved' | 'rejected') => Promise<void>;
@@ -57,6 +64,7 @@ interface AppContextType {
   scheduleKostVerification: (verificationId: string, price: number, visitDate: string) => Promise<void>;
   approveOwner: (verificationId: string, status: 'approved' | 'rejected') => Promise<void>;
   approveKost: (verificationId: string, status: 'approved' | 'rejected', badge?: 'verified' | 'highly-trusted', expiredAt?: string) => Promise<void>;
+  adminVerifyKostDirectly: (kostId: string, badge?: 'verified' | 'highly-trusted', expiredAt?: string) => Promise<void>;
   moderateReview: (reviewId: string, action: 'approve' | 'delete') => Promise<void>;
   updateUserRole: (userId: string, role: User['role']) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
@@ -103,7 +111,7 @@ interface AppContextType {
   generateParentCode: () => Promise<void>;
   linkChild: (code: string) => Promise<boolean>;
   unlinkChild: () => Promise<void>;
-  payInvoice: (invoiceId: string, paymentMethod: string) => Promise<void>;
+  payInvoice: (invoiceId: string, paymentMethod: string, voucherCode?: string, discountAmount?: number) => Promise<void>;
 
   toast: { message: string; type: 'success' | 'error' | 'info' } | null;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -136,14 +144,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [bookingPayments, setBookingPayments] = useState<BookingPayment[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings>({
-    commissionType: 'percentage',
-    commissionValue: 5,
+    commissionType: 'flat',
+    commissionValue: 0,
     commissionChargedTo: 'student',
     smallReferralReward: 'Voucher Diskon Rp 10.000',
     transactionReferralReward: 'Voucher Diskon Rp 50.000',
     ownerSubscriptionRate: 3000,
     ownerPromotionRate: 5000
   });
+
+  const [campuses, setCampuses] = useState<Campus[]>([]);
+  const [distanceOverrides, setDistanceOverrides] = useState<Record<string, Record<string, number>>>({});
+
+  const DEFAULT_CAMPUSES: Campus[] = [
+    { id: 'ub', name: 'Universitas Brawijaya (UB)', latitude: -7.9525, longitude: 112.6144, isVisible: true },
+    { id: 'um', name: 'Universitas Negeri Malang (UM)', latitude: -7.9626, longitude: 112.6175, isVisible: true },
+    { id: 'umm', name: 'Universitas Muhammadiyah Malang (UMM)', latitude: -7.9213, longitude: 112.5976, isVisible: true }
+  ];
   
   const [ownerPayments, setOwnerPayments] = useState<OwnerPayment[]>([]);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -296,6 +313,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           .select('*');
         if (dbPlatformSettings && dbPlatformSettings.length > 0) {
           const settingsObj: Partial<PlatformSettings> = {};
+          let dbCampuses: Campus[] | null = null;
+          let dbOverrides: Record<string, Record<string, number>> | null = null;
+
           dbPlatformSettings.forEach((item) => {
             if (item.key === 'commissionType') settingsObj.commissionType = item.value as any;
             if (item.key === 'commissionValue') settingsObj.commissionValue = Number(item.value);
@@ -304,11 +324,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (item.key === 'transactionReferralReward') settingsObj.transactionReferralReward = item.value;
             if (item.key === 'ownerSubscriptionRate') settingsObj.ownerSubscriptionRate = Number(item.value);
             if (item.key === 'ownerPromotionRate') settingsObj.ownerPromotionRate = Number(item.value);
+            if (item.key === 'campuses') {
+              try {
+                dbCampuses = JSON.parse(item.value);
+              } catch (e) {
+                console.error("Gagal parse campuses:", e);
+              }
+            }
+            if (item.key === 'distance_overrides') {
+              try {
+                dbOverrides = JSON.parse(item.value);
+              } catch (e) {
+                console.error("Gagal parse distance_overrides:", e);
+              }
+            }
           });
           setPlatformSettings(prev => ({ ...prev, ...settingsObj }));
+          if (dbCampuses) {
+            setCampuses(dbCampuses);
+          } else {
+            setCampuses(DEFAULT_CAMPUSES);
+          }
+          if (dbOverrides) {
+            setDistanceOverrides(dbOverrides);
+          }
+        } else {
+          setCampuses(DEFAULT_CAMPUSES);
         }
       } catch (err) {
         console.warn('platform_settings table might not exist yet:', err);
+        setCampuses(DEFAULT_CAMPUSES);
       }
 
       try {
@@ -728,6 +773,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           verifiedExpiresAt: status === 'approved' ? (expiredAt || null) : null
         } : k)
       );
+    }
+  };
+
+  const adminVerifyKostDirectly = async (
+    kostId: string,
+    badge: 'verified' | 'highly-trusted' = 'verified',
+    expiredAt?: string
+  ) => {
+    const now = new Date().toISOString();
+    const approvedAt = now.split('T')[0];
+
+    const newVerif = {
+      kostId,
+      status: 'approved' as const,
+      submittedAt: now,
+      approvedAt,
+      price: 0,
+      visitDate: approvedAt,
+      expiredAt
+    };
+
+    const { data: verifData, error: verifError } = await supabase
+      .from('kost_verifications')
+      .insert(newVerif)
+      .select()
+      .single();
+
+    if (verifError) {
+      console.error('Error creating direct verification:', verifError);
+      showToast('Gagal memproses verifikasi langsung: ' + verifError.message, 'error');
+      return;
+    }
+
+    if (verifData) {
+      setKostVerifications(prev => [verifData, ...prev]);
+
+      const { error: kostError } = await supabase
+        .from('kosts')
+        .update({ 
+          verifiedStatus: badge,
+          verifiedExpiresAt: expiredAt || null
+        })
+        .eq('id', kostId);
+
+      if (!kostError) {
+        setKosts(prev => 
+          prev.map(k => k.id === kostId ? { 
+            ...k, 
+            verifiedStatus: badge,
+            verifiedExpiresAt: expiredAt || null
+          } : k)
+        );
+        showToast('Kost berhasil diverifikasi langsung!', 'success');
+      } else {
+        console.error('Error updating kost verified status:', kostError);
+        showToast('Gagal memperbarui status verifikasi kost.', 'error');
+      }
     }
   };
 
@@ -1210,8 +1312,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const addKost = async (newKostData: Omit<Kost, 'id' | 'rating' | 'views' | 'ownerId' | 'ownerName' | 'ownerPhone'>) => {
-    if (!currentUser) return;
+  const getKostCoordinates = (kost: Kost): [number, number] => {
+    if (kost.latitude && kost.longitude) {
+      return [Number(kost.latitude), Number(kost.longitude)];
+    }
+    const coords: Record<string, [number, number]> = {
+      'kost-1': [-7.9495, 112.6155],
+      'kost-2': [-7.9452, 112.6225],
+      'kost-3': [-7.9575, 112.6085],
+      'kost-4': [-7.9235, 112.5955],
+      'kost-5': [-7.9185, 112.5895],
+      'kost-6': [-7.9605, 112.6125],
+    };
+    if (coords[kost.id]) return coords[kost.id];
+    let hash = 0;
+    for (let i = 0; i < kost.id.length; i++) {
+      hash = kost.id.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const latOffset = ((Math.abs(hash) % 400) - 200) / 10000;
+    const lngOffset = ((Math.abs(hash >> 2) % 400) - 200) / 10000;
+    return [-7.95 + latOffset, 112.61 + lngOffset];
+  };
+
+  const getKostDistance = (kost: Kost, campusId: string): number => {
+    if (distanceOverrides[kost.id]?.[campusId] !== undefined) {
+      return distanceOverrides[kost.id][campusId];
+    }
+    if (campusId === 'ub' && kost.distanceToUB > 0) return kost.distanceToUB;
+    if (campusId === 'um' && kost.distanceToUM > 0) return kost.distanceToUM;
+    if (campusId === 'umm' && kost.distanceToUMM > 0) return kost.distanceToUMM;
+
+    const campus = campuses.find(c => c.id === campusId);
+    if (!campus) return 0;
+
+    const kostCoords = getKostCoordinates(kost);
+    const dLat = (kostCoords[0] - campus.latitude) * 111.12;
+    const dLng = (kostCoords[1] - campus.longitude) * 110.06;
+    return Number(Math.sqrt(dLat * dLat + dLng * dLng).toFixed(1));
+  };
+
+  const updateCampuses = async (newCampuses: Campus[]) => {
+    setCampuses(newCampuses);
+    try {
+      const { error } = await supabase
+        .from('platform_settings')
+        .upsert({ key: 'campuses', value: JSON.stringify(newCampuses) });
+      if (error) throw error;
+    } catch (err: any) {
+      showToast('Gagal menyimpan daftar kampus ke database: ' + err.message, 'error');
+    }
+  };
+
+  const updateDistanceOverrides = async (newOverrides: Record<string, Record<string, number>>) => {
+    setDistanceOverrides(newOverrides);
+    try {
+      const { error } = await supabase
+        .from('platform_settings')
+        .upsert({ key: 'distance_overrides', value: JSON.stringify(newOverrides) });
+      if (error) throw error;
+    } catch (err: any) {
+      showToast('Gagal menyimpan data override jarak ke database: ' + err.message, 'error');
+    }
+  };
+
+  const addKost = async (newKostData: Omit<Kost, 'id' | 'rating' | 'views' | 'ownerId' | 'ownerName' | 'ownerPhone'>): Promise<string | null> => {
+    if (!currentUser) return null;
     const newKost = {
       ...newKostData,
       rating: null,
@@ -1230,7 +1395,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!error && data) {
       setKosts(prev => [data, ...prev]);
       await submitKostVerification(data.id);
+      return data.id;
     }
+    return null;
   };
 
   const updateKostAvailability = async (id: string, availability: 'available' | 'limited' | 'full') => {
@@ -1304,12 +1471,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
 
-      let commissionAmount = 0;
-      if (platformSettings.commissionType === 'percentage') {
-        commissionAmount = Math.round((dpAmount * platformSettings.commissionValue) / 100);
-      } else {
-        commissionAmount = platformSettings.commissionValue;
-      }
+      const commissionAmount = 0;
 
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
@@ -1815,14 +1977,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Hubungan akun anak berhasil diputus.', 'success');
   };
 
-  const payInvoice = async (invoiceId: string, paymentMethod: string) => {
+  const payInvoice = async (invoiceId: string, paymentMethod: string, voucherCode?: string, discountAmount?: number) => {
     const paidDate = new Date().toISOString().split('T')[0];
+    
+    // Fetch the current invoice first to get its current amount and notes
+    const currentInvoice = invoices.find(inv => inv.id === invoiceId);
+    const originalAmount = currentInvoice?.amount || 0;
+    const currentNotes = currentInvoice?.notes || '';
+    
+    const finalAmount = Math.max(0, originalAmount - (discountAmount || 0));
+    const appendNotes = voucherCode ? ` (Voucher ${voucherCode} digunakan. Diskon: Rp ${discountAmount?.toLocaleString('id-ID')})` : '';
+    const newNotes = currentNotes + appendNotes;
+
     const { data, error } = await supabase
       .from('invoices')
       .update({
         status: 'paid' as const,
         paidDate,
-        paymentMethod
+        paymentMethod,
+        amount: finalAmount,
+        notes: newNotes
       })
       .eq('id', invoiceId)
       .select()
@@ -1836,7 +2010,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (data) {
       setInvoices(prev => prev.map(inv => inv.id === invoiceId ? data : inv));
-      showToast('Pembayaran berhasil! Tagihan telah dilunasi.', 'success');
+      showToast(voucherCode ? `Pembayaran berhasil! Diskon voucher diterapkan: Rp ${discountAmount?.toLocaleString('id-ID')}` : 'Pembayaran berhasil! Tagihan telah dilunasi.', 'success');
     }
   };
 
@@ -1866,6 +2040,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addToRecentlyViewed,
         addReview,
         addKost,
+        campuses,
+        distanceOverrides,
+        updateCampuses,
+        updateDistanceOverrides,
+        getKostCoordinates,
+        getKostDistance,
         updateKostAvailability,
         addInquiry,
         updateInquiryStatus,
@@ -1879,6 +2059,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         scheduleKostVerification,
         approveOwner,
         approveKost,
+        adminVerifyKostDirectly,
         moderateReview,
         updateUserRole,
         deleteUser,

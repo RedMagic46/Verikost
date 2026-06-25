@@ -113,7 +113,7 @@ export default function InquiriesTab({
 
       {activeKosts.length === 0 ? (
         <div className="p-12 text-center bg-white dark:bg-slate-900 border border-border rounded-3xl text-slate-400 font-semibold flex flex-col items-center justify-center">
-          <Mail className="h-12 w-12 text-slate-350 dark:text-slate-700 mb-3" />
+          <Mail className="h-12 w-12 text-slate-400 dark:text-slate-700 mb-3" />
           <p>Harap daftarkan properti kost terlebih dahulu untuk menerima pertanyaan.</p>
         </div>
       ) : (
@@ -179,33 +179,30 @@ export default function InquiriesTab({
                       {/* Status indicator */}
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
                         inq.status === 'approved'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-150 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'
                           : inq.status === 'rejected'
-                          ? 'bg-rose-50 text-rose-700 border border-rose-150 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30'
-                          : 'bg-amber-50 text-amber-700 border border-amber-150 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30'
+                          ? 'bg-rose-50 text-rose-700 border border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30'
+                          : 'bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30'
                       }`}>
                         {inq.status === 'approved' ? 'Disetujui' : inq.status === 'rejected' ? 'Ditolak' : 'Menunggu'}
                       </span>                      {inq.status === 'approved' && (() => {
                         const payment = bookingPayments.find(p => p.inquiryId === inq.id);
                         if (!payment) {
                           return (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-slate-100 text-slate-650 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
                               Tagihan DP Belum Dibuat
                             </span>
                           );
                         }
-                        const expectedPayout = platformSettings.commissionChargedTo === 'owner'
-                          ? payment.dpAmount - payment.commissionAmount
-                          : payment.dpAmount;
+                        const expectedPayout = payment.dpAmount;
                         if (payment.status === 'paid') {
                           return (
                             <div className="flex flex-wrap gap-2 items-center">
-                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-150 dark:bg-emerald-950/20 dark:text-emerald-450 dark:border-emerald-900/30">
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30">
                                 DP Lunas ({payment.paymentMethod || 'Simulasi'})
                               </span>
-                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-150 dark:bg-blue-955/20 dark:text-blue-400 dark:border-blue-900/30 animate-in fade-in duration-200">
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30 animate-in fade-in duration-200">
                                 Payout Anda: Rp {expectedPayout.toLocaleString('id-ID')}
-                                {platformSettings.commissionChargedTo === 'owner' && ` (Dipotong komisi Rp ${payment.commissionAmount.toLocaleString('id-ID')})`}
                               </span>
                             </div>
                           );
@@ -213,7 +210,7 @@ export default function InquiriesTab({
                         if (payment.status === 'pending') {
                           return (
                             <div className="flex flex-wrap gap-2 items-center">
-                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-150 dark:bg-amber-950/20 dark:text-amber-450 dark:border-amber-900/30 animate-pulse">
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30 animate-pulse">
                                 Belum Bayar DP (Tagihan Aktif)
                               </span>
                               <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-slate-50 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
@@ -224,7 +221,7 @@ export default function InquiriesTab({
                         }
                         if (payment.status === 'expired') {
                           return (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-50 text-rose-700 border border-rose-150 dark:bg-rose-950/20 dark:text-rose-455 dark:border-rose-900/30">
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-50 text-rose-700 border border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30">
                               Pembayaran Kedaluwarsa
                             </span>
                           );
@@ -234,7 +231,7 @@ export default function InquiriesTab({
                     </div>
 
                     {/* Message content */}
-                    <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-border/60 text-slate-700 dark:text-slate-350 text-xs font-semibold leading-relaxed">
+                    <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-border/60 text-slate-700 dark:text-slate-400 text-xs font-semibold leading-relaxed">
                       "{inq.message}"
                     </div>
 
@@ -256,7 +253,7 @@ export default function InquiriesTab({
                     <div className="flex items-center gap-2 shrink-0 md:self-center">
                       <button
                         onClick={() => handleReject(inq.id)}
-                        className="py-2.5 px-4 rounded-xl border border-border/80 text-slate-650 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-300 dark:hover:bg-rose-950/20 dark:hover:text-rose-450 text-xs font-black transition-colors cursor-pointer flex items-center gap-1"
+                        className="py-2.5 px-4 rounded-xl border border-border/80 text-slate-600 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-300 dark:hover:bg-rose-950/20 dark:hover:text-rose-400 text-xs font-black transition-colors cursor-pointer flex items-center gap-1"
                       >
                         <X className="h-4 w-4" />
                         <span>Tolak</span>

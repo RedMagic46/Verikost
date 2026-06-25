@@ -239,9 +239,9 @@ export default function ReportsTab({
         </div>
       </div>
 
-      {activeKosts.length === 0 ? (
+       {activeKosts.length === 0 ? (
         <div className="p-12 text-center bg-white dark:bg-slate-900 border border-border rounded-3xl text-slate-400 font-semibold flex flex-col items-center justify-center">
-          <FileText className="h-12 w-12 text-slate-350 dark:text-slate-700 mb-3" />
+          <FileText className="h-12 w-12 text-slate-400 dark:text-slate-700 mb-3" />
           <p>Harap daftarkan properti kost terlebih dahulu untuk memuat ekspor laporan.</p>
         </div>
       ) : (
@@ -260,11 +260,11 @@ export default function ReportsTab({
             </div>
 
             <div className="space-y-4 pt-3 border-t border-border/40 text-xs font-semibold">
-              <div className="flex justify-between text-slate-650 dark:text-slate-400">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>Total Kamar:</span>
                 <span className="font-black text-slate-800 dark:text-white">{occupancySummary.total} Kamar</span>
               </div>
-              <div className="flex justify-between text-slate-650 dark:text-slate-400">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>Tingkat Okupansi:</span>
                 <span className="font-black text-emerald-600 dark:text-emerald-400">{occupancySummary.rate}%</span>
               </div>
@@ -305,7 +305,7 @@ export default function ReportsTab({
                 </select>
               </div>
 
-              <div className="flex justify-between text-slate-655 dark:text-slate-400">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>Uang Lunas Masuk:</span>
                 <span className="font-black text-emerald-600 dark:text-emerald-400">{formatIDR(revenueSummary.paid)}</span>
               </div>
@@ -333,16 +333,16 @@ export default function ReportsTab({
             </div>
 
             <div className="space-y-4 pt-3 border-t border-border/40 text-xs font-semibold">
-              <div className="flex justify-between text-slate-655 dark:text-slate-400">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>Tagihan Tertunggak:</span>
-                <span className="font-black text-rose-600 dark:text-rose-450">{arrearsCount} Tagihan</span>
+                <span className="font-black text-rose-600 dark:text-rose-400">{arrearsCount} Tagihan</span>
               </div>
               
               <div className="h-7"></div> {/* Spacer to match sizes */}
 
               <button
                 onClick={handleExportArrears}
-                className="w-full py-3 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-border text-slate-700 dark:text-slate-205 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all hover:scale-102 cursor-pointer"
+                className="w-full py-3 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-border text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all hover:scale-102 cursor-pointer"
               >
                 <Download className="h-4 w-4" />
                 <span>Unduh CSV Tunggakan</span>
