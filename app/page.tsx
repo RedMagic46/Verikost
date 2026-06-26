@@ -40,7 +40,7 @@ export default function Home() {
 
   const featuredKosts = React.useMemo(() => {
     const now = new Date();
-    const verified = kosts.filter((k) => k.verifiedStatus === 'highly-trusted' || k.verifiedStatus === 'verified');
+    const verified = kosts.filter((k) => (k.verifiedStatus === 'highly-trusted' || k.verifiedStatus === 'verified') && !k.isDeleted);
     return [...verified]
       .sort((a, b) => {
         const promoA = a.promotionExpiresAt ? new Date(a.promotionExpiresAt) > now : false;

@@ -816,9 +816,10 @@ function AdminDashboardContent() {
   }, [pendingKosts, searchKostsQueue, kosts]);
 
   const filteredKostsList = useMemo(() => {
-    if (!searchKostsList.trim()) return kosts;
+    const activeKosts = kosts.filter((kost) => !kost.isDeleted);
+    if (!searchKostsList.trim()) return activeKosts;
     const query = searchKostsList.toLowerCase().trim();
-    return kosts.filter((kost) => {
+    return activeKosts.filter((kost) => {
       return (
         kost.name.toLowerCase().includes(query) ||
         kost.address.toLowerCase().includes(query) ||

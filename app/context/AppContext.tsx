@@ -940,16 +940,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteKost = async (kostId: string) => {
     const { error } = await supabase
       .from('kosts')
-      .update({ isDeleted: true })
+      .delete()
       .eq('id', kostId);
 
-    if (!error) {
-      setKosts(prev => prev.map(k => k.id === kostId ? { ...k, isDeleted: true } : k));
-      showToast('Kost berhasil diarsipkan.', 'success');
-    } else {
-      console.error('Error soft-deleting kost:', error);
-      showToast('Gagal mengarsipkan kost: ' + error.message, 'error');
+    if (error) {
+      console.error('Error deleting kost:', error);
+      showToast('Gagal menghapus kost: ' + error.message, 'error');
+      throw error;
     }
+    setKosts(prev => prev.filter(k => k.id !== kostId));
+    showToast('Kost berhasil dihapus.', 'success');
   };
 
   // Kamar CRUD
