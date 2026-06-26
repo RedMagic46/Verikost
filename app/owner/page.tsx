@@ -138,7 +138,7 @@ function OwnerDashboardContent() {
   // Filtered Owner Properti & Data Associated
   const myKosts = useMemo(() => {
     if (!currentUser) return [];
-    return kosts.filter((k) => k.ownerId === currentUser.id);
+    return kosts.filter((k) => k.ownerId === currentUser.id && !k.isDeleted);
   }, [kosts, currentUser]);
 
   const myRooms = useMemo(() => {

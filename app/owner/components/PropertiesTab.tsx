@@ -26,6 +26,7 @@ import Link from 'next/link';
 import { supabase } from '@/app/lib/supabase';
 import { useApp } from '@/app/context/AppContext';
 import CheckoutModal from '@/components/CheckoutModal';
+import ConfirmModal from '@/components/ConfirmModal';
 import dynamic from 'next/dynamic';
 
 const AdminMapSelector = dynamic(() => import('@/components/AdminMapSelector'), { ssr: false });
@@ -746,7 +747,7 @@ export default function PropertiesTab({
                       <button
                         onClick={() => handleOpenDeleteConfirm(kost.id)}
                         className="p-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/40 rounded-xl text-rose-600 dark:text-rose-400 transition-colors cursor-pointer"
-                        title="Arsipkan Kost (Soft Delete)"
+                        title="Hapus Kost"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -1255,43 +1256,6 @@ export default function PropertiesTab({
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {isDeleteConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-border shadow-2xl w-full max-w-md p-6 text-center space-y-6 animate-in zoom-in-95 duration-200">
-            <div className="h-14 w-14 bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-full flex items-center justify-center mx-auto shadow-inner">
-              <Trash2 className="h-7 w-7" />
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-tight">Arsipkan Properti Kost?</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Apakah Anda yakin ingin mengarsipkan kost ini? Listing properti tidak akan terlihat oleh calon mahasiswa tetapi data kamar, penyewa, dan riwayat tagihan tetap tersimpan aman.
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsDeleteConfirmOpen(false);
-                  setKostToDelete(null);
-                }}
-                className="flex-1 py-3 border border-border rounded-xl text-xs font-bold text-slate-700 dark:text-slate-250 hover:bg-slate-50 cursor-pointer"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDelete}
-                className="flex-1 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold shadow-sm shadow-rose-500/20 transition-colors cursor-pointer"
-              >
-                Ya, Arsipkan
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Promote Kost Modal */}
       {isPromoteModalOpen && promoteKost && (
@@ -1377,6 +1341,20 @@ export default function PropertiesTab({
           onSuccess={handlePromoteSuccess}
         />
       )}
+
+      {/* Delete Kost Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => {
+          setIsDeleteConfirmOpen(false);
+          setKostToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Kost?"
+        description="Apakah Anda yakin ingin menghapus kost ini? Tindakan ini akan menghapus kost beserta data terkait secara permanen dari database."
+        confirmText="Ya, Hapus"
+        variant="danger"
+      />
 
     </div>
   );
